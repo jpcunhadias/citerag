@@ -33,6 +33,11 @@ from src.config import (
 )
 from src.devices import get_device
 from src.models import DocumentChunk, generate_chunk_id, normalize_text_for_hashing
+from src.utils.qdrant import (
+    DENSE_VECTOR_NAME,
+    SPARSE_VECTOR_NAME,
+    convert_sparse_dict_to_qdrant_sparsevector,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -80,27 +85,6 @@ def clean_text(text: str) -> str:
 
     # Collapse excessive blank lines (max 2 consecutive newlines -> 1 blank line)
     return re.sub(r"\n{3,}", "\n\n", text_cleaned_spaces)
-
-
-def convert_sparse_vector(sparse_dict: dict[int, float]) -> SparseVector:
-    """
-    Convert dict[int, float] sparse vector to Qdrant SparseVector object.
-
-    Args:
-        sparse_dict: Dictionary mapping token IDs to weights.
-
-    Returns:
-        SparseVector object with sorted indices and matching values.
-    """
-    if not sparse_dict:
-        return SparseVector(indices=[], values=[])
-
-    # Sort indices ascending and reorder values to match
-    sorted_items = sorted(sparse_dict.items(), key=lambda x: x[0])
-    indices = [item[0] for item in sorted_items]
-    values = [item[1] for item in sorted_items]
-
-    return SparseVector(indices=indices, values=values)
 
 
 def load_documents(
@@ -524,10 +508,12 @@ def index_to_qdrant(
         )
         # For named vectors with sparse support, use vectors_config for dense and sparse_vectors_config for sparse
         vectors_config = {
-            "dense": VectorParams(size=dense_dimension, distance=Distance.COSINE),
+            DENSE_VECTOR_NAME: VectorParams(
+                size=dense_dimension, distance=Distance.COSINE
+            ),
         }
         sparse_vectors_config = {
-            "sparse": SparseVectorParams(),
+            SPARSE_VECTOR_NAME: SparseVectorParams(),
         }
         client.create_collection(
             collection_name=collection_name,
@@ -545,7 +531,7 @@ def index_to_qdrant(
             continue
 
         # Convert sparse vector to SparseVector object
-        sparse_vec_obj = convert_sparse_vector(chunk.sparse_vector)
+        sparse_vec_obj = convert_sparse_dict_to_qdrant_sparsevector(chunk.sparse_vector)
 
         # Convert chunk_id (hex string) to UUID for Qdrant compatibility
         # Qdrant requires point IDs to be UUIDs or unsigned integers
@@ -557,8 +543,8 @@ def index_to_qdrant(
         point = PointStruct(
             id=point_id,
             vector={
-                "dense": chunk.dense_vector,
-                "sparse": sparse_vec_obj,
+                DENSE_VECTOR_NAME: chunk.dense_vector,
+                SPARSE_VECTOR_NAME: sparse_vec_obj,
             },
             payload={
                 "text": chunk.text,
