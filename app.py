@@ -1,6 +1,7 @@
 """Streamlit application for the RAG documentation search system."""
 
 import logging
+import sys
 
 import streamlit as st
 
@@ -10,6 +11,13 @@ from src.search import generate_answer, retrieve_context
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Detect CLI mode
+if len(sys.argv) > 1 and sys.argv[1] == "ingest":
+    # Route to CLI handler
+    from src.cli import main
+
+    sys.exit(main())
 
 # Page configuration
 st.set_page_config(
