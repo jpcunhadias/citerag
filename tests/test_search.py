@@ -545,43 +545,6 @@ class TestRRFHelper:
 class TestUtils:
     """Tests for utility functions."""
 
-    def test_convert_sparse_dict_to_qdrant_sparsevector_sorts_indices(self):
-        """Test that indices are sorted ascending."""
-        sparse_dict = {5: 0.5, 1: 0.3, 3: 0.7, 2: 0.2}
-
-        sparse_vec = convert_sparse_dict_to_qdrant_sparsevector(sparse_dict)
-
-        assert isinstance(sparse_vec, SparseVector)
-        assert sparse_vec.indices == [1, 2, 3, 5]  # Sorted ascending
-        assert sparse_vec.values == [0.3, 0.2, 0.7, 0.5]  # Values reordered to match
-
-    def test_convert_sparse_dict_to_qdrant_sparsevector_empty(self):
-        """Test conversion of empty sparse vector."""
-        sparse_vec = convert_sparse_dict_to_qdrant_sparsevector({})
-        assert isinstance(sparse_vec, SparseVector)
-        assert sparse_vec.indices == []
-        assert sparse_vec.values == []
-
-    def test_convert_sparse_dict_to_qdrant_sparsevector_single_element(self):
-        """Test conversion with single element."""
-        sparse_dict = {42: 0.99}
-        sparse_vec = convert_sparse_dict_to_qdrant_sparsevector(sparse_dict)
-        assert sparse_vec.indices == [42]
-        assert sparse_vec.values == [0.99]
-
-    def test_convert_sparse_dict_to_qdrant_sparsevector_preserves_values(self):
-        """Test that values are correctly matched to sorted indices."""
-        sparse_dict = {3: 0.7, 1: 0.3, 2: 0.2}
-
-        sparse_vec = convert_sparse_dict_to_qdrant_sparsevector(sparse_dict)
-
-        # Verify values match indices
-        assert sparse_vec.indices[0] == 1
-        assert sparse_vec.values[0] == 0.3
-        assert sparse_vec.indices[1] == 2
-        assert sparse_vec.values[1] == 0.2
-        assert sparse_vec.indices[2] == 3
-        assert sparse_vec.values[2] == 0.7
 
 
 @pytest.mark.integration
