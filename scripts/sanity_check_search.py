@@ -143,10 +143,12 @@ def check_fallback_path():
 
     # Check prefetch_limit/prefetch_k
     source = inspect.getsource(SearchService.hybrid_search)
-    if (("prefetch_limit = max(" in source or "prefetch_k = max(" in source)
-            and "top_k *" in source
-            and "min_prefetch_limit" in source
-            and "prefetch_multiplier" in source):
+    if (
+        ("prefetch_limit = max(" in source or "prefetch_k = max(" in source)
+        and "top_k *" in source
+        and "min_prefetch_limit" in source
+        and "prefetch_multiplier" in source
+    ):
         print("✅ prefetch_limit/prefetch_k uses min_prefetch_limit and prefetch_multiplier (e.g. max(self.min_prefetch_limit, top_k * self.prefetch_multiplier))")
     else:
         print("❌ prefetch_limit/prefetch_k calculation not found or does not use min_prefetch_limit/prefetch_multiplier")
