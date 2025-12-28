@@ -36,4 +36,5 @@ RERANK_TOP_K: int = 5
 
 # RAG Configuration
 RAG_MAX_CONTEXT_CHARS: int = 12000
+RAG_REFUSAL_MESSAGE: str = "I couldn't find this in the indexed documentation."
 

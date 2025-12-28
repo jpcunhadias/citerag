@@ -6,7 +6,7 @@ from typing import Optional
 
 from qdrant_client import QdrantClient
 
-from src.config import RAG_MAX_CONTEXT_CHARS
+from src.config import RAG_MAX_CONTEXT_CHARS, RAG_REFUSAL_MESSAGE
 from src.ingest import VectorService
 from src.llm import OllamaClient
 from src.models import Citation, RAGResponse, SearchResult
@@ -137,7 +137,7 @@ class RAGService:
         if not context_str.strip():
             logger.warning("Empty context - returning default response")
             return RAGResponse(
-                answer="I couldn't find this in the indexed documentation.",
+                answer=RAG_REFUSAL_MESSAGE,
                 citations=[],
                 context_used=None if not debug else "",
                 used_chunk_ids=[],
@@ -147,7 +147,7 @@ class RAGService:
         system_prompt = (
             "You are a technical assistant. Answer using ONLY the context provided. "
             "Context is labeled [1], [2]... Every factual statement must cite a label. "
-            "If the answer is not in the context, say 'I couldn't find this in the indexed documentation.' "
+            f"If the answer is not in the context, say '{RAG_REFUSAL_MESSAGE}' "
             "Do not guess."
         )
         full_prompt = f"{system_prompt}\n\nContext:\n{context_str}\n\nQuestion: {query}\n\nAnswer:"
@@ -157,8 +157,7 @@ class RAGService:
         answer = self.llm_client.generate(full_prompt)
 
         # Step 7: Citation compliance check
-        refusal_string = "I couldn't find this in the indexed documentation."
-        if answer.strip() != refusal_string:
+        if answer.strip() != RAG_REFUSAL_MESSAGE:
             # Check if answer contains citation labels [1], [2], etc.
             citation_pattern = r"\[\d+\]"
             if not re.search(citation_pattern, answer):
@@ -166,7 +165,7 @@ class RAGService:
                     "Answer does not contain citations but is not a refusal. "
                     "Replacing with refusal string."
                 )
-                answer = refusal_string
+                answer = RAG_REFUSAL_MESSAGE
 
         # Step 8: Return RAGResponse
         return RAGResponse(
