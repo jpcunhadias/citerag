@@ -62,7 +62,9 @@ def index_to_qdrant(chunks: list[dict], collection_name: str) -> None:
         collection_name: Name of the Qdrant collection.
     """
     # TODO: Implement Qdrant upsert logic
-    logger.info(f"Indexing {len(chunks)} chunks to Qdrant collection '{collection_name}'")
+    logger.info(
+        f"Indexing {len(chunks)} chunks to Qdrant collection '{collection_name}'"
+    )
 
 
 def ingest_documents(
@@ -84,4 +86,3 @@ def ingest_documents(
     chunks_with_embeddings = embed_chunks(chunks)
     index_to_qdrant(chunks_with_embeddings, collection_name="docs_collection")
     logger.info("Ingestion pipeline completed")
-
