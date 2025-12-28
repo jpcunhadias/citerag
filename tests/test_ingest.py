@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from qdrant_client.models import SparseVector
 
-from src.config import CHUNKER_FINGERPRINT, CHUNK_OVERLAP, CHUNK_SIZE
+from src.config import CHUNK_OVERLAP, CHUNK_SIZE, CHUNKER_FINGERPRINT
 from src.ingest import (
     chunk_documents,
     clean_text,
@@ -146,6 +146,42 @@ class TestTextCleaning:
         cleaned = clean_text(text)
         # Should have max 2 consecutive blank lines
         assert "\n\n\n\n\n" not in cleaned
+
+    def test_clean_text_preserves_indentation_in_code_blocks(self):
+        """Test that indentation is preserved inside fenced code blocks."""
+        text = """Here's some Python code:
+
+```python
+def hello():
+    print("hello")
+    if True:
+        print("world")
+```
+
+More text here."""
+        cleaned = clean_text(text)
+        # Verify indentation is preserved inside code block
+        assert '    print("hello")' in cleaned
+        assert '        print("world")' in cleaned
+        assert "def hello():" in cleaned
+
+    def test_clean_text_preserves_indentation_in_multiple_code_blocks(self):
+        """Test that indentation is preserved in multiple code blocks."""
+        text = """First block:
+
+```python
+    x = 1
+```
+
+Second block:
+
+```bash
+    echo "test"
+```
+"""
+        cleaned = clean_text(text)
+        assert "    x = 1" in cleaned
+        assert '    echo "test"' in cleaned
 
 
 class TestDocumentLoading:
@@ -360,7 +396,6 @@ class TestQdrantIntegration:
     def test_qdrant_upsert_with_named_vectors(self, test_collection_name, tmp_path):
         """Test upserting chunks with named vectors to Qdrant."""
         from qdrant_client import QdrantClient
-        from qdrant_client.models import Distance, SparseVectorParams, VectorParams
 
         from src.config import QDRANT_HOST, QDRANT_PORT
         from src.ingest import index_to_qdrant
@@ -386,7 +421,11 @@ class TestQdrantIntegration:
 
         # Index to Qdrant
         dense_dimension = 3
-        index_to_qdrant(chunks, collection_name=test_collection_name, dense_dimension=dense_dimension)
+        index_to_qdrant(
+            chunks,
+            collection_name=test_collection_name,
+            dense_dimension=dense_dimension,
+        )
 
         # Verify collection was created
         client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
@@ -395,7 +434,9 @@ class TestQdrantIntegration:
         assert test_collection_name in collection_names
 
         # Verify points were upserted
-        points = client.scroll(collection_name=test_collection_name, limit=10, with_vectors=True)[0]
+        points = client.scroll(
+            collection_name=test_collection_name, limit=10, with_vectors=True
+        )[0]
         assert len(points) == 2
 
         # Verify named vectors structure
@@ -414,4 +455,3 @@ class TestQdrantIntegration:
 
         # Cleanup: delete test collection
         client.delete_collection(collection_name=test_collection_name)
-
