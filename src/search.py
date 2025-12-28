@@ -8,10 +8,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import (
     FieldCondition,
     Filter,
-    Fusion,
-    FusionQuery,
     MatchValue,
-    Prefetch,
     ScoredPoint,
 )
 

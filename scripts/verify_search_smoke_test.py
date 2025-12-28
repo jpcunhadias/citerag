@@ -19,9 +19,7 @@ def run_search_command(query: str, collection: str, limit: int) -> tuple[int, st
         "--limit",
         str(limit),
     ]
-    result = subprocess.run(
-        cmd, capture_output=True, text=True, cwd="/home/gagau/projects/rag-ds-docsearcher"
-    )
+    result = subprocess.run(cmd, capture_output=True, text=True)
     return result.returncode, result.stdout + result.stderr
 
 
@@ -71,7 +69,6 @@ def verify_relevance(results: list[dict[str, Any]], query: str) -> bool:
         return False
 
     top_text = results[0]["text"].lower()
-    query_lower = query.lower()
 
     # Check for merge/join/concat keywords
     merge_keywords = ["merge", "join", "concat", "combine", "dataframe"]
