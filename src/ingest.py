@@ -549,11 +549,7 @@ def index_to_qdrant(
 
         # Convert chunk_id (hex string) to UUID for Qdrant compatibility
         # Qdrant requires point IDs to be UUIDs or unsigned integers
-        # We use uuid5 with a namespace to deterministically convert hex to UUID
-        namespace_uuid = uuid.UUID(
-            "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
-        )  # DNS namespace
-        # Use first 32 chars of chunk_id (128 bits) to create UUID
+        # Parse first 32 hex characters (128 bits) directly as UUID
         chunk_id_hex = chunk.chunk_id[:32]
         point_id = uuid.UUID(hex=chunk_id_hex)
 
