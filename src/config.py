@@ -25,8 +25,10 @@ DeviceType = Literal["cuda", "cpu"]
 DEFAULT_DEVICE: DeviceType = "cuda"
 
 # Chunking Configuration
-CHUNK_SIZE: int = 768  # tokens (~512-1024 range)
-CHUNK_OVERLAP: int = 100  # tokens
+CHUNK_SIZE: int = 1024  # characters
+CHUNK_OVERLAP: int = 100  # characters
+CHUNKER_FINGERPRINT: str = "md:v1|headers=#,##|size=1024|overlap=100"
+EMBEDDING_BATCH_SIZE: int = 32
 
 # Search Configuration
 HYBRID_SEARCH_TOP_K: int = 25
