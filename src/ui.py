@@ -9,6 +9,7 @@ from qdrant_client import QdrantClient
 from src.config import QDRANT_HOST, QDRANT_PORT, RAG_REFUSAL_MESSAGE
 from src.ingest import VectorService
 from src.llm import OllamaClient, OllamaConnectionError
+from src.models import Citation
 from src.rag import RAGService
 from src.rerank import RerankerService
 from src.search import SearchService
@@ -38,6 +39,34 @@ def init_state() -> None:
     """Initialize session state variables."""
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
+
+
+def build_citations_data(citations: list[Citation]) -> list[dict[str, str]]:
+    """
+    Build a structured data list from citations for display.
+
+    Args:
+        citations: List of Citation objects
+
+    Returns:
+        List of dictionaries with citation data
+    """
+    citations_data = []
+    for citation in citations:
+        header = (
+            citation.header
+            if citation.header
+            else (citation.title if citation.title else "-")
+        )
+        citations_data.append(
+            {
+                "ID": citation.label,
+                "Score": f"{citation.score:.4f}" if citation.score is not None else "-",
+                "File": citation.source_path,
+                "Header": header,
+            }
+        )
+    return citations_data
 
 
 @st.cache_data(ttl=60)  # Cache for 60 seconds
@@ -121,21 +150,7 @@ def render() -> None:
                     # Show sources if available
                     if response_data["citations"] and message["content"] != RAG_REFUSAL_MESSAGE and not message["content"].startswith("❌"):
                         with st.expander("📚 Sources Used"):
-                            citations_data = []
-                            for citation in response_data["citations"]:
-                                header = (
-                                    citation.header
-                                    if citation.header
-                                    else (citation.title if citation.title else "-")
-                                )
-                                citations_data.append(
-                                    {
-                                        "ID": citation.label,
-                                        "Score": f"{citation.score:.4f}" if citation.score is not None else "-",
-                                        "File": citation.source_path,
-                                        "Header": header,
-                                    }
-                                )
+                            citations_data = build_citations_data(response_data["citations"])
                             df = pd.DataFrame(citations_data)
                             st.dataframe(df, width='stretch')
 
@@ -199,24 +214,9 @@ def render() -> None:
                 if response.answer != RAG_REFUSAL_MESSAGE and response.citations:
                     with st.expander("📚 Sources Used"):
                         # Create DataFrame from citations
-                        citations_data = []
-                        for citation in response.citations:
-                            header = (
-                                citation.header
-                                if citation.header
-                                else (citation.title if citation.title else "-")
-                            )
-                            citations_data.append(
-                                {
-                                    "ID": citation.label,
-                                    "Score": f"{citation.score:.4f}" if citation.score is not None else "-",
-                                    "File": citation.source_path,
-                                    "Header": header,
-                                }
-                            )
-
+                        citations_data = build_citations_data(response.citations)
                         df = pd.DataFrame(citations_data)
-                        st.dataframe(df, use_container_width=True)
+                        st.dataframe(df, width="stretch")
 
                 # Debug Widget
                 if debug_mode and response.context_used:
