@@ -9,6 +9,7 @@ from qdrant_client import QdrantClient
 from src.config import QDRANT_HOST, QDRANT_PORT, RAG_REFUSAL_MESSAGE
 from src.ingest import VectorService
 from src.llm import OllamaClient, OllamaConnectionError
+from src.models import Citation
 from src.rag import RAGService
 from src.rerank import RerankerService
 from src.search import SearchService
@@ -40,7 +41,7 @@ def init_state() -> None:
         st.session_state["messages"] = []
 
 
-def build_citations_data(citations: list) -> list[dict[str, str]]:
+def build_citations_data(citations: list[Citation]) -> list[dict[str, str]]:
     """
     Build a structured data list from citations for display.
 

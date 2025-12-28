@@ -19,6 +19,21 @@ sys.modules['langchain_core.documents'] = MagicMock()
 from src.models import Citation, RAGResponse
 from src.ui import build_citations_data, get_collections, get_services
 
+# Constants for tests
+FALLBACK_COLLECTIONS = ["pandas_docs"]
+
+
+@pytest.fixture(autouse=False)
+def clear_streamlit_cache():
+    """Fixture to clear Streamlit cache before tests that need it."""
+    import streamlit as st
+    if hasattr(st, 'cache_data'):
+        st.cache_data.clear()
+    yield
+    # Optional: clear again after test
+    if hasattr(st, 'cache_data'):
+        st.cache_data.clear()
+
 
 class TestBuildCitationsData:
     """Tests for build_citations_data helper function."""
@@ -177,7 +192,7 @@ class TestGetCollections:
     """Tests for get_collections function."""
 
     @patch("src.ui.QdrantClient")
-    def test_get_collections_success(self, mock_qdrant):
+    def test_get_collections_success(self, mock_qdrant, clear_streamlit_cache):
         """Test successful retrieval of collections."""
         # Create mock collection objects
         mock_collection1 = MagicMock()
@@ -192,11 +207,6 @@ class TestGetCollections:
         mock_client.get_collections.return_value = mock_collections_response
         mock_qdrant.return_value = mock_client
 
-        # Clear cache before test
-        import streamlit as st
-        if hasattr(st, 'cache_data'):
-            st.cache_data.clear()
-
         # Call the function
         collections = get_collections()
 
@@ -207,13 +217,8 @@ class TestGetCollections:
 
     @patch("src.ui.QdrantClient")
     @patch("src.ui.logger")
-    def test_get_collections_error_fallback(self, mock_logger, mock_qdrant):
+    def test_get_collections_error_fallback(self, mock_logger, mock_qdrant, clear_streamlit_cache):
         """Test fallback when collection retrieval fails."""
-        # Clear cache before test
-        import streamlit as st
-        if hasattr(st, 'cache_data'):
-            st.cache_data.clear()
-
         # Configure mock to raise an exception
         mock_qdrant.side_effect = Exception("Connection failed")
 
@@ -221,7 +226,7 @@ class TestGetCollections:
         collections = get_collections()
 
         # Verify fallback behavior
-        assert collections == ["pandas_docs"]
+        assert collections == FALLBACK_COLLECTIONS
         mock_logger.error.assert_called_once()
 
 
@@ -301,31 +306,21 @@ class TestErrorHandling:
     """Tests for error handling in UI functions."""
 
     @patch("src.ui.QdrantClient")
-    def test_get_collections_handles_connection_error(self, mock_qdrant):
+    def test_get_collections_handles_connection_error(self, mock_qdrant, clear_streamlit_cache):
         """Test that get_collections handles connection errors gracefully."""
-        # Clear cache before test
-        import streamlit as st
-        if hasattr(st, 'cache_data'):
-            st.cache_data.clear()
-
         mock_qdrant.side_effect = ConnectionError("Cannot connect to Qdrant")
 
         # Should not raise, should return fallback
         collections = get_collections()
 
-        assert collections == ["pandas_docs"]
+        assert collections == FALLBACK_COLLECTIONS
 
     @patch("src.ui.QdrantClient")
-    def test_get_collections_handles_generic_exception(self, mock_qdrant):
+    def test_get_collections_handles_generic_exception(self, mock_qdrant, clear_streamlit_cache):
         """Test that get_collections handles generic exceptions gracefully."""
-        # Clear cache before test
-        import streamlit as st
-        if hasattr(st, 'cache_data'):
-            st.cache_data.clear()
-
         mock_qdrant.side_effect = RuntimeError("Unexpected error")
 
         # Should not raise, should return fallback
         collections = get_collections()
 
-        assert collections == ["pandas_docs"]
+        assert collections == FALLBACK_COLLECTIONS
