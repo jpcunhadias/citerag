@@ -10,6 +10,9 @@ from qdrant_client import QdrantClient
 
 from src.config import EMBEDDING_BATCH_SIZE, QDRANT_HOST, QDRANT_PORT
 from src.ingest import VectorService, ingest_documents
+from src.llm import OllamaClient, OllamaConnectionError
+from src.rag import RAGService
+from src.rerank import RerankerService
 from src.search import SearchService
 
 logging.basicConfig(
@@ -50,6 +53,92 @@ def ingest_command(args: argparse.Namespace) -> int:
         return 0
     except Exception as e:
         logger.error(f"Ingestion failed: {e}", exc_info=True)
+        return 1
+
+
+def ask_command(args: argparse.Namespace) -> int:
+    """
+    Handle the ask command.
+
+    Args:
+        args: Parsed command-line arguments.
+
+    Returns:
+        Exit code (0 for success, non-zero for failure).
+    """
+    try:
+        # Initialize all services
+        qdrant_client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+        vector_service = VectorService()
+        search_service = SearchService(qdrant_client, vector_service)
+        reranker_service = RerankerService()
+        llm_client = OllamaClient()
+
+        # Create RAG service
+        rag_service = RAGService(
+            search_service=search_service,
+            reranker_service=reranker_service,
+            llm_client=llm_client,
+        )
+
+        # Execute RAG pipeline
+        response = rag_service.ask(
+            query=args.query,
+            collection=args.collection,
+            top_k=args.top_k,
+            top_n=args.top_n,
+            rerank=not args.no_rerank,
+            debug=args.debug,
+        )
+
+        # Print Answer
+        print("\n" + "=" * 80)
+        print("ANSWER")
+        print("=" * 80)
+        print(response.answer)
+        print()
+
+        # Print Sources Used Table
+        print("=" * 80)
+        print("SOURCES USED")
+        print("=" * 80)
+
+        if response.citations:
+            # Print table header
+            print(f"{'[ID]':<8} {'Score':<12} {'File':<40} {'Header'}")
+            print("-" * 80)
+
+            # Print each citation with its score (from Citation.score field)
+            for citation in response.citations:
+                score = citation.score if citation.score is not None else 0.0
+                header = citation.header if citation.header else ""
+                # Truncate long paths/headers for display
+                file_display = (
+                    citation.source_path[:38] + ".."
+                    if len(citation.source_path) > 40
+                    else citation.source_path
+                )
+                header_display = (
+                    header[:38] + ".." if len(header) > 40 else header
+                )
+                print(
+                    f"{citation.label:<8} {score:<12.4f} {file_display:<40} {header_display}"
+                )
+        else:
+            print("No sources used.")
+
+        print("=" * 80)
+
+        logger.info("Ask command completed successfully")
+        return 0
+
+    except OllamaConnectionError as e:
+        print(f"\033[91m❌ Error: {e}\033[0m", file=sys.stderr)
+        logger.error(f"Ollama connection error: {e}", exc_info=True)
+        return 1
+    except Exception as e:
+        print(f"\033[91m❌ Error: {e}\033[0m", file=sys.stderr)
+        logger.error(f"Ask command failed: {e}", exc_info=True)
         return 1
 
 
@@ -167,6 +256,42 @@ def main() -> int:
         help="Filter by version (optional)",
     )
 
+    # Ask command
+    ask_parser = subparsers.add_parser("ask", help="Ask a question using RAG pipeline")
+    ask_parser.add_argument(
+        "query",
+        type=str,
+        help="Question to ask",
+    )
+    ask_parser.add_argument(
+        "--collection",
+        required=True,
+        type=str,
+        help="Name of Qdrant collection",
+    )
+    ask_parser.add_argument(
+        "--top-k",
+        type=int,
+        default=25,
+        help="Number of initial search results (default: 25)",
+    )
+    ask_parser.add_argument(
+        "--top-n",
+        type=int,
+        default=5,
+        help="Number of results to rerank and use for context (default: 5)",
+    )
+    ask_parser.add_argument(
+        "--no-rerank",
+        action="store_true",
+        help="Skip reranking step",
+    )
+    ask_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Include context_used in response",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -177,6 +302,8 @@ def main() -> int:
         return ingest_command(args)
     elif args.command == "search":
         return search_command(args)
+    elif args.command == "ask":
+        return ask_command(args)
     else:
         logger.error(f"Unknown command: {args.command}")
         return 1

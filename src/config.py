@@ -14,7 +14,7 @@ QDRANT_COLLECTION_NAME: str = "docs_collection"
 
 # Ollama Configuration
 OLLAMA_BASE_URL: str = "http://localhost:11434"
-OLLAMA_MODEL_NAME: str = "llama3:8b-instruct"
+OLLAMA_MODEL_NAME: str = "llama3"
 
 # Paths
 BASE_DOCS_DIR: Path = Path("data/raw")
@@ -33,4 +33,7 @@ EMBEDDING_BATCH_SIZE: int = 32
 # Search Configuration
 HYBRID_SEARCH_TOP_K: int = 25
 RERANK_TOP_K: int = 5
+
+# RAG Configuration
+RAG_MAX_CONTEXT_CHARS: int = 12000
 
