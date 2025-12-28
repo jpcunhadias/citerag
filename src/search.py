@@ -192,8 +192,6 @@ class SearchService:
             ).points
 
             logger.info(f"Used Qdrant prefetch + fusion API, returned {len(results)} results")
-
-
         except (AttributeError, TypeError, ValueError) as e:
             # Fallback: fusion API not available, use Python RRF
             logger.info(
