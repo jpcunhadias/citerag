@@ -13,7 +13,6 @@ from src.config import CHUNK_OVERLAP, CHUNK_SIZE, CHUNKER_FINGERPRINT
 from src.ingest import (
     chunk_documents,
     clean_text,
-    convert_sparse_vector,
     load_documents,
 )
 from src.models import (
@@ -21,6 +20,7 @@ from src.models import (
     generate_chunk_id,
     normalize_text_for_hashing,
 )
+from src.utils.qdrant import convert_sparse_dict_to_qdrant_sparsevector
 
 
 class TestChunkIDGeneration:
@@ -285,7 +285,7 @@ class TestSparseVectorConversion:
         """Test that indices are sorted ascending."""
         sparse_dict = {5: 0.5, 1: 0.3, 3: 0.7, 2: 0.2}
 
-        sparse_vec = convert_sparse_vector(sparse_dict)
+        sparse_vec = convert_sparse_dict_to_qdrant_sparsevector(sparse_dict)
 
         assert isinstance(sparse_vec, SparseVector)
         assert sparse_vec.indices == [1, 2, 3, 5]  # Sorted ascending
@@ -293,7 +293,7 @@ class TestSparseVectorConversion:
 
     def test_convert_sparse_vector_empty(self):
         """Test conversion of empty sparse vector."""
-        sparse_vec = convert_sparse_vector({})
+        sparse_vec = convert_sparse_dict_to_qdrant_sparsevector({})
         assert isinstance(sparse_vec, SparseVector)
         assert sparse_vec.indices == []
         assert sparse_vec.values == []
@@ -302,7 +302,7 @@ class TestSparseVectorConversion:
         """Test that values are correctly matched to sorted indices."""
         sparse_dict = {3: 0.7, 1: 0.3, 2: 0.2}
 
-        sparse_vec = convert_sparse_vector(sparse_dict)
+        sparse_vec = convert_sparse_dict_to_qdrant_sparsevector(sparse_dict)
 
         # Verify values match indices
         assert sparse_vec.indices[0] == 1
