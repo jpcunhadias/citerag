@@ -159,11 +159,6 @@ class TestSearchService:
         """Test fallback to Python RRF when fusion API unavailable."""
         mock_qdrant_client = search_service.client
 
-        # Make query() raise AttributeError to simulate missing fusion API
-        mock_qdrant_client.query_points.side_effect = AttributeError(
-            "FusionMethod not found"
-        )
-
         # Mock search() for fallback
         dense_results = [
             ScoredPoint(
@@ -194,15 +189,17 @@ class TestSearchService:
             ),
         ]
 
+        # Make query_points raise AttributeError first, then return results for fallback
         mock_qdrant_client.query_points.side_effect = [
+            AttributeError("FusionMethod not found"),
             create_mock_query_response(dense_results),
             create_mock_query_response(sparse_results),
         ]
 
         results = search_service.hybrid_search("test query", "test_collection", top_k=2)
 
-        # Should have called query_points() twice (dense and sparse)
-        assert mock_qdrant_client.query_points.call_count == 2
+        # Should have called query_points() 3 times (1 failed fusion attempt + dense + sparse)
+        assert mock_qdrant_client.query_points.call_count == 3
 
         # Should return fused results
         assert len(results) <= 2
@@ -260,7 +257,7 @@ class TestSearchService:
                 create_mock_query_response([]),  # Sparse query
             ]
 
-            results = search_service.hybrid_search(
+            search_service.hybrid_search(
                 "test query", "test_collection", top_k=top_k
             )
 
@@ -313,6 +310,18 @@ class TestSearchService:
         )
 
         assert mock_qdrant_client.query_points.called
+
+    def test_hybrid_search_invalid_filter_key(
+        self, search_service, mock_vector_service
+    ):
+        """Test that invalid filter keys raise ValueError."""
+        import pytest
+
+        filters = {"invalid_key": "some_value"}
+        with pytest.raises(ValueError, match="Invalid filter key: 'invalid_key'"):
+            search_service.hybrid_search(
+                "test query", "test_collection", top_k=5, filters=filters
+            )
 
     def test_hybrid_search_empty_results(self, search_service, mock_vector_service):
         """Test handling of empty results."""
