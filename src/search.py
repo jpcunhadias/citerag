@@ -162,26 +162,27 @@ class SearchService:
         try:
             from qdrant_client import models
 
-            # Construct fusion query with the new syntax
-            fusion_query = models.FusionQuery(
-                fusion=models.Fusion.RRF,
-                queries=[
-                    models.Query(
-                        query_vector=models.NamedVector(
-                            name=DENSE_VECTOR_NAME, vector=dense_list
-                        ),
-                    ),
-                    models.Query(
-                        query_vector=models.NamedSparseVector(
-                            name=SPARSE_VECTOR_NAME, vector=sparse_vector
-                        ),
-                    ),
-                ],
-            )
+            # Construct prefetch queries for dense and sparse vectors
+            prefetches = [
+                models.Prefetch(
+                    query=dense_list,
+                    using=DENSE_VECTOR_NAME,
+                    limit=max(50, top_k * 5),
+                ),
+                models.Prefetch(
+                    query=sparse_vector,
+                    using=SPARSE_VECTOR_NAME,
+                    limit=max(50, top_k * 5),
+                ),
+            ]
 
-            # Execute query using query_points
+            # Construct fusion query
+            fusion_query = models.FusionQuery(fusion=models.Fusion.RRF)
+
+            # Execute query using query_points with prefetch and fusion
             results = self.client.query_points(
                 collection_name=collection,
+                prefetch=prefetches,
                 query=fusion_query,
                 limit=top_k,
                 query_filter=qdrant_filter,
