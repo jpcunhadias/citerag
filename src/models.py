@@ -20,14 +20,16 @@ class SearchQuery(BaseModel):
 class SearchResult(BaseModel):
     """Model for a single search result."""
 
-    score: float = Field(..., description="Relevance score")
+    chunk_id: str = Field(..., description="Unique chunk identifier")
+    score: float = Field(..., description="Fused relevance score (higher = better)")
     text: str = Field(..., description="Text snippet from the document")
-    url: Optional[str] = Field(None, description="Source URL if available")
-    file_path: Optional[str] = Field(None, description="Local file path if available")
+    source_path: str = Field(..., description="Source file path")
+    canonical_source_id: str = Field(..., description="Canonical source identifier (relative POSIX path)")
     header: Optional[str] = Field(None, description="Section header (e.g., 'DataFrame.merge')")
-    library: Optional[str] = Field(None, description="Library name")
-    version: Optional[str] = Field(None, description="Library version")
-    chunk_id: Optional[str] = Field(None, description="Unique chunk identifier")
+    library: Optional[str] = Field(None, description="Library name (optional but recommended for filtering/display)")
+    version: Optional[str] = Field(None, description="Library version (optional but recommended)")
+    title: Optional[str] = Field(None, description="Document title (optional but recommended)")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Catch-all for other fields")
 
 
 class DocumentChunk(BaseModel):
