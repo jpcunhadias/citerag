@@ -315,8 +315,6 @@ class TestSearchService:
         self, search_service, mock_vector_service
     ):
         """Test that invalid filter keys raise ValueError."""
-        import pytest
-
         filters = {"invalid_key": "some_value"}
         with pytest.raises(ValueError, match="Invalid filter key: 'invalid_key'"):
             search_service.hybrid_search(
