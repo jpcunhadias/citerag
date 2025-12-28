@@ -12,7 +12,6 @@ from src.ingest import index_to_qdrant
 from src.search import SearchService
 from qdrant_client import QdrantClient
 from src.ingest import VectorService
-from src.config import QDRANT_HOST, QDRANT_PORT
 
 
 def check_vector_names():
