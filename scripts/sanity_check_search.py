@@ -7,11 +7,11 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.utils.qdrant import DENSE_VECTOR_NAME, SPARSE_VECTOR_NAME
-from src.ingest import index_to_qdrant
-from src.search import SearchService
 from qdrant_client import QdrantClient
-from src.ingest import VectorService
+
+from src.ingest import VectorService, index_to_qdrant
+from src.search import SearchService
+from src.utils.qdrant import DENSE_VECTOR_NAME, SPARSE_VECTOR_NAME
 
 
 def check_vector_names():
@@ -116,11 +116,11 @@ def check_fusion_api():
     import inspect
     source = inspect.getsource(SearchService.hybrid_search)
 
-    # Check both dense and sparse queries
-    if "NamedVector" in source and "NamedSparseVector" in source:
-        print("✅ Fusion query uses both dense (NamedVector) and sparse (NamedSparseVector)")
+    # Check fusion API uses Prefetch + FusionQuery
+    if "Prefetch" in source and "FusionQuery" in source:
+        print("✅ Fusion API uses Prefetch with FusionQuery")
     else:
-        print("❌ Fusion query missing dense or sparse vector")
+        print("❌ Fusion API does not appear to use Prefetch/FusionQuery")
 
     # Check with_payload
     payload_count = source.count("with_payload=True")
@@ -141,12 +141,17 @@ def check_fallback_path():
     from src.search import SearchService
     import inspect
 
-    # Check prefetch_k
+    # Check prefetch_limit/prefetch_k
     source = inspect.getsource(SearchService.hybrid_search)
-    if "prefetch_k = max(50, top_k * 5)" in source:
-        print("✅ prefetch_k = max(50, top_k * 5)")
+    if (
+        ("prefetch_limit = max(" in source or "prefetch_k = max(" in source)
+        and "top_k *" in source
+        and "min_prefetch_limit" in source
+        and "prefetch_multiplier" in source
+    ):
+        print("✅ prefetch_limit/prefetch_k uses min_prefetch_limit and prefetch_multiplier (e.g. max(self.min_prefetch_limit, top_k * self.prefetch_multiplier))")
     else:
-        print("❌ prefetch_k calculation not found")
+        print("❌ prefetch_limit/prefetch_k calculation not found or does not use min_prefetch_limit/prefetch_multiplier")
 
     # Check rrf_k
     service = SearchService(QdrantClient(), VectorService())
