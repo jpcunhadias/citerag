@@ -38,6 +38,8 @@ class SearchService:
         self.client = qdrant_client
         self.vector_service = vector_service
         self.rrf_k = 60  # Constant for RRF fusion
+        self.prefetch_multiplier = 5  # Multiplier for prefetch candidates
+        self.min_prefetch_limit = 50  # Minimum prefetch limit
 
     def reciprocal_rank_fusion(
         self,
@@ -162,26 +164,30 @@ class SearchService:
         try:
             from qdrant_client import models
 
-            # Construct fusion query with the new syntax
-            fusion_query = models.FusionQuery(
-                fusion=models.Fusion.RRF,
-                queries=[
-                    models.Query(
-                        query_vector=models.NamedVector(
-                            name=DENSE_VECTOR_NAME, vector=dense_list
-                        ),
-                    ),
-                    models.Query(
-                        query_vector=models.NamedSparseVector(
-                            name=SPARSE_VECTOR_NAME, vector=sparse_vector
-                        ),
-                    ),
-                ],
-            )
+            # Calculate prefetch limit for retrieving candidate points
+            prefetch_limit = max(self.min_prefetch_limit, top_k * self.prefetch_multiplier)
 
-            # Execute query using query_points
+            # Construct prefetch queries for dense and sparse vectors
+            prefetches = [
+                models.Prefetch(
+                    query=dense_list,
+                    using=DENSE_VECTOR_NAME,
+                    limit=prefetch_limit,
+                ),
+                models.Prefetch(
+                    query=sparse_vector,
+                    using=SPARSE_VECTOR_NAME,
+                    limit=prefetch_limit,
+                ),
+            ]
+
+            # Construct fusion query
+            fusion_query = models.FusionQuery(fusion=models.Fusion.RRF)
+
+            # Execute query using query_points with prefetch and fusion
             results = self.client.query_points(
                 collection_name=collection,
+                prefetch=prefetches,
                 query=fusion_query,
                 limit=top_k,
                 query_filter=qdrant_filter,
@@ -196,7 +202,7 @@ class SearchService:
             )
 
             # Calculate prefetch_k for fallback
-            prefetch_k = max(50, top_k * 5)
+            prefetch_k = max(self.min_prefetch_limit, top_k * self.prefetch_multiplier)
 
             # Execute separate dense search
             dense_results = self.client.query_points(
