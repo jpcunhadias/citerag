@@ -11,7 +11,12 @@ graph TD
         User([User])
         Streamlit["Streamlit UI (src/ui.py)"]
         CLI["CLI Command (app.py ask)"]
-        Cache["St. Cache Resource (Holds Heavy Services)"]
+    end
+
+    %% --- API Layer ---
+    subgraph API ["FastAPI Backend"]
+        FastAPI["FastAPI Server (api/main.py)"]
+        Routes["API Routes (/ask, /search, /collections)"]
     end
 
     %% --- Orchestration Layer ---
@@ -45,13 +50,11 @@ graph TD
     User --> Streamlit
     User --> CLI
 
-    Streamlit --> Cache
-    Cache -->|Init| SearchSvc
-    Cache -->|Init| RerankSvc
-    Cache -->|Init| LLMSvc
+    Streamlit -->|HTTP| FastAPI
+    CLI -->|Direct| RAG
 
-    Streamlit -->|"1: Ask query"| RAG
-    CLI -->|"1: Ask query"| RAG
+    FastAPI --> Routes
+    Routes -->|"1: Ask query"| RAG
 
     %% --- Connections: RAG Pipeline ---
     RAG -->|"2: Get candidates"| SearchSvc
@@ -75,12 +78,14 @@ graph TD
 
     %% --- Styling ---
     classDef ui fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef api fill:#fff9c4,stroke:#f57f17,stroke-width:2px;
     classDef logic fill:#fff3e0,stroke:#ff6f00,stroke-width:2px;
     classDef service fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
     classDef infra fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
     classDef hardware fill:#424242,stroke:#000,stroke-width:2px,color:#fff;
 
-    class Streamlit,CLI,Cache ui;
+    class Streamlit,CLI ui;
+    class FastAPI,Routes api;
     class RAG,ContextBuilder logic;
     class SearchSvc,RerankSvc,LLMSvc,VectorSvc service;
     class Qdrant,OllamaProc,FileSystem infra;
@@ -100,11 +105,12 @@ graph TD
 ## Tech Stack
 
 - **Vector DB:** Qdrant (running in Docker)
-- **Application Framework:** Streamlit
+- **Backend API:** FastAPI with Uvicorn
+- **Frontend:** Streamlit
 - **Embedding Model:** `BAAI/bge-m3` (via `FlagEmbedding`)
 - **Reranker Model:** `BAAI/bge-reranker-v2-m3`
 - **LLM:** Ollama with `Llama-3-8B-Instruct`
-- **Core Libraries:** `langchain`, `sentence-transformers`, `torch`, `qdrant-client`
+- **Core Libraries:** `langchain`, `sentence-transformers`, `torch`, `qdrant-client`, `fastapi`, `httpx`
 
 ## Architecture
 
@@ -144,11 +150,61 @@ The system is composed of two main pipelines:
     ollama pull llama3:8b-instruct
     ```
 
-4.  **Start the Qdrant vector database:**
+4.  **Start services with Docker Compose:**
+
+    **Option A: Full stack (recommended for production)**
     ```bash
     docker-compose up -d
     ```
-    This will start a Qdrant container and persist data in a local Docker volume named `qdrant_storage`.
+    This starts Qdrant, FastAPI backend, and Streamlit UI. Access:
+    - Streamlit UI: http://localhost:8501 (or http://<your-ip>:8501 from other devices on your network)
+    - FastAPI API: http://localhost:8000 (or http://<your-ip>:8000 from other devices on your network)
+    - API Docs: http://localhost:8000/docs (or http://<your-ip>:8000/docs from other devices on your network)
+
+    **Option B: Qdrant only (for local development)**
+    ```bash
+    docker-compose up -d qdrant
+    ```
+    Then run FastAPI and Streamlit locally (see Usage section below).
+
+    **Important Notes:**
+    - Models are kept on the host filesystem (`~/.cache`) and mounted into containers to avoid re-downloading
+    - **Ollama Configuration**: Ollama must be configured to listen on all interfaces (not just localhost) for containers to access it:
+      ```bash
+      # Set OLLAMA_HOST environment variable before starting Ollama
+      export OLLAMA_HOST=0.0.0.0:11434
+      ollama serve
+      ```
+      Or add to your shell profile: `echo 'export OLLAMA_HOST=0.0.0.0:11434' >> ~/.bashrc`
+    - The `HOME` environment variable must be set for model cache mounting to work
+    - To rebuild containers after code changes: `docker-compose build && docker-compose up -d`
+
+## Production Configuration
+
+### CORS Security
+
+The FastAPI backend uses CORS (Cross-Origin Resource Sharing) middleware to control which origins can make requests to the API. This is critical for production security.
+
+**Default Configuration (Development):**
+```bash
+CORS_ORIGINS=http://localhost:8501
+```
+
+**Production Configuration:**
+Set the `CORS_ORIGINS` environment variable to your specific frontend URL(s):
+```bash
+CORS_ORIGINS=https://your-app.example.com,https://admin.example.com
+```
+
+**To configure for production:**
+1. Edit `docker-compose.yml` and update the `CORS_ORIGINS` environment variable under the `api` service
+2. Or set the environment variable when starting the API:
+   ```bash
+   export CORS_ORIGINS=https://your-app.example.com
+   uvicorn api.main:app --host 0.0.0.0 --port 8000
+   ```
+
+**Security Warning:** Never use wildcard origins (`*`) in production as this allows any website to make requests to your API, creating a significant security vulnerability.
 
 ## Usage
 
@@ -180,12 +236,27 @@ Before you can search, you must index your documentation.
 
 The easiest way to interact with your documents is through the Streamlit web application.
 
-1.  **Start the app:**
+**Using Docker Compose (recommended):**
+```bash
+docker-compose up -d
+```
+Then open http://localhost:8501 in your browser.
+
+**Using local development:**
+1.  **Start the FastAPI backend:**
+    ```bash
+    uvicorn api.main:app --reload
+    ```
+    This will start the API server at `http://localhost:8000`. The `--reload` flag enables hot-reload during development.
+
+2.  **Start the Streamlit UI** (in a separate terminal):
     ```bash
     streamlit run ui.py
     ```
-2.  **Open your browser** to the displayed URL (usually `http://localhost:8501`).
-3.  **Select your collection** from the sidebar and start asking questions.
+3.  **Open your browser** to the displayed URL (usually `http://localhost:8501`).
+4.  **Select your collection** from the sidebar and start asking questions.
+
+**Note:** The Streamlit UI requires the FastAPI backend to be running. The CLI (`app.py ask`) works independently and does not require the backend.
 
 ### 3. Asking Questions (CLI)
 
@@ -201,3 +272,20 @@ python3 app.py ask "how do i merge two dataframes?" --collection pandas_v2
 ```
 
 This will output a detailed answer along with the sources used to generate it.
+
+## Testing
+
+Run the automated test script to validate your setup:
+
+```bash
+python3 tests/integration/test_docker_setup_integration.py [collection_name]
+```
+
+This will test:
+- API health endpoint
+- Collections endpoint
+- Search endpoint (if collection provided)
+- Ask/RAG endpoint (if collection provided)
+- Streamlit UI accessibility
+
+See `tests/integration/test_docker_setup_integration.py` for more details.

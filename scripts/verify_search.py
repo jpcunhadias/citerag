@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify search smoke test criteria."""
+"""Verify search functionality."""
 
 import json
 import subprocess
@@ -45,7 +45,7 @@ def verify_json_format(output: str) -> tuple[bool, list[dict[str, Any]]]:
         results = json.loads(json_str)
         return True, results
     except (json.JSONDecodeError, ValueError) as e:
-        print(f"❌ JSON parsing failed: {e}")
+        print(f"[FAIL] JSON parsing failed: {e}")
         return False, []
 
 
@@ -58,14 +58,14 @@ def verify_ordering(results: list[dict[str, Any]]) -> bool:
     is_descending = all(scores[i] >= scores[i + 1] for i in range(len(scores) - 1))
 
     if not is_descending:
-        print(f"❌ Scores not in descending order: {scores}")
+        print(f"[FAIL] Scores not in descending order: {scores}")
     return is_descending
 
 
 def verify_relevance(results: list[dict[str, Any]], query: str) -> bool:
     """Verify top result is relevant to query."""
     if not results:
-        print("❌ No results returned")
+        print("[FAIL] No results returned")
         return False
 
     top_text = results[0]["text"].lower()
@@ -75,7 +75,7 @@ def verify_relevance(results: list[dict[str, Any]], query: str) -> bool:
     has_relevant_keyword = any(keyword in top_text for keyword in merge_keywords)
 
     if not has_relevant_keyword:
-        print(f"❌ Top result doesn't mention merge/join/concat: {top_text[:100]}...")
+        print(f"[FAIL] Top result doesn't mention merge/join/concat: {top_text[:100]}...")
         return False
 
     return True
@@ -88,30 +88,30 @@ def verify_scores(results: list[dict[str, Any]]) -> bool:
 
     for i, result in enumerate(results):
         if "score" not in result:
-            print(f"❌ Result {i} missing score field")
+            print(f"[FAIL] Result {i} missing score field")
             return False
 
         score = result["score"]
         if not isinstance(score, (int, float)):
-            print(f"❌ Result {i} score is not numeric: {type(score)}")
+            print(f"[FAIL] Result {i} score is not numeric: {type(score)}")
             return False
 
         if score <= 0:
-            print(f"❌ Result {i} has non-positive score: {score}")
+            print(f"[FAIL] Result {i} has non-positive score: {score}")
             return False
 
-    print(f"✅ All scores are positive (range: {min(r['score'] for r in results):.6f} to {max(r['score'] for r in results):.6f})")
+    print(f"[PASS] All scores are positive (range: {min(r['score'] for r in results):.6f} to {max(r['score'] for r in results):.6f})")
     return True
 
 
 def main():
-    """Run smoke test verification."""
+    """Run search verification."""
     query = "how to merge dataframes"
     collection = "pandas_docs"
     limit = 3
 
     print("=" * 60)
-    print("Search Smoke Test Verification")
+    print("Search Verification")
     print("=" * 60)
     print(f"Query: '{query}'")
     print(f"Collection: {collection}")
@@ -122,22 +122,22 @@ def main():
     print("[1] Execution: Command runs without stack traces...")
     exit_code, output = run_search_command(query, collection, limit)
     if exit_code != 0:
-        print(f"❌ Command failed with exit code {exit_code}")
+        print(f"[FAIL] Command failed with exit code {exit_code}")
         print("Output:")
         print(output)
         return 1
-    print("✅ Command executed successfully")
+    print("[PASS] Command executed successfully")
     print()
 
     # Criterion 2: Format
     print("[2] Format: Output is valid JSON...")
     is_valid_json, results = verify_json_format(output)
     if not is_valid_json:
-        print("❌ Output is not valid JSON")
+        print("[FAIL] Output is not valid JSON")
         print("Output:")
         print(output[-500:])  # Last 500 chars
         return 1
-    print(f"✅ Output is valid JSON ({len(results)} results)")
+    print(f"[PASS] Output is valid JSON ({len(results)} results)")
     print()
 
     # Criterion 3: Ordering
@@ -145,14 +145,14 @@ def main():
     if not verify_ordering(results):
         return 1
     scores = [r["score"] for r in results]
-    print(f"✅ Results sorted correctly: {scores}")
+    print(f"[PASS] Results sorted correctly: {scores}")
     print()
 
     # Criterion 4: Relevance
     print("[4] Relevance: Top result mentions merge/join/concat...")
     if not verify_relevance(results, query):
         return 1
-    print(f"✅ Top result is relevant: '{results[0]['text'][:80]}...'")
+    print(f"[PASS] Top result is relevant: '{results[0]['text'][:80]}...'")
     print()
 
     # Criterion 5: Scores
@@ -162,7 +162,7 @@ def main():
     print()
 
     print("=" * 60)
-    print("✅ ALL CRITERIA PASSED!")
+    print("[SUCCESS] ALL CRITERIA PASSED!")
     print("=" * 60)
     print()
     print("Summary:")

@@ -15,8 +15,77 @@ services:
     mem_limit: 64g
     mem_reservation: 32g
     restart: unless-stopped
+    # Health check removed - Qdrant container doesn't include curl/wget
+    # Qdrant is healthy if it's listening on port 6333
+    # Use depends_on without condition or check manually
+    networks:
+      - rag-network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: rag-api
+    ports:
+      - "8000:8000"  # FastAPI
+    volumes:
+      - .:/app
+      # Mount model cache from host (read-write) - adjust paths if needed
+      # Models are kept on host to avoid re-downloading in containers, but may be updated at runtime
+      - ${HOME}/.cache:/root/.cache:rw
+      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:rw
+      - ${HOME}/.cache/torch:/root/.cache/torch:rw
+    environment:
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # CORS origins: internal Docker network + localhost for browser access
+      - CORS_ORIGINS=http://streamlit:8501,http://localhost:8501
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - qdrant
+    restart: unless-stopped
+    healthcheck:
+      # Health check uses localhost since it runs inside the container
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 -O- http://localhost:8000/health > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - rag-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: rag-streamlit
+    ports:
+      - "8501:8501"  # Streamlit
+    volumes:
+      - .:/app
+    environment:
+      - API_BASE_URL=http://api:8000
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - api
+    restart: unless-stopped
+    healthcheck:
+      # Health check uses localhost since it runs inside the container
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8501/_stcore/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - rag-network
 
 volumes:
   qdrant_storage:
     driver: local
 
+networks:
+  rag-network:
+    driver: bridge

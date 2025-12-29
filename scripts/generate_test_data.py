@@ -142,7 +142,7 @@ df.loc[df['age'] > 30, 'status'] = 'senior'
 ```
 """)
 
-    print(f"✅ Generated {len(list(pandas_dir.glob('*.md')))} happy path documents in {pandas_dir}")
+    print(f"[PASS] Generated {len(list(pandas_dir.glob('*.md')))} happy path documents in {pandas_dir}")
 
 
 def generate_refusal_path_docs() -> None:
@@ -191,7 +191,7 @@ Soccer is played with 11 players per team. The field is 100-110 meters long.
 Basketball is played with 5 players per team. The court is 28 meters long.
 """)
 
-    print(f"✅ Generated {len(list(unrelated_dir.glob('*.md')))} refusal test documents in {unrelated_dir}")
+    print(f"[PASS] Generated {len(list(unrelated_dir.glob('*.md')))} refusal test documents in {unrelated_dir}")
 
 
 def generate_alternate_collection_docs() -> None:
@@ -265,7 +265,7 @@ arr[[0, 1], [0, 1]]
 ```
 """)
 
-    print(f"✅ Generated {len(list(numpy_dir.glob('*.md')))} alternate collection documents in {numpy_dir}")
+    print(f"[PASS] Generated {len(list(numpy_dir.glob('*.md')))} alternate collection documents in {numpy_dir}")
 
 
 def generate_test_queries_file() -> None:
@@ -337,7 +337,7 @@ Use same query with reranker ON vs OFF:
 
     queries_file = TEST_DATA_DIR / "TEST_QUERIES.md"
     queries_file.write_text(queries_content)
-    print(f"✅ Generated test queries file: {queries_file}")
+    print(f"[PASS] Generated test queries file: {queries_file}")
 
 
 def main() -> None:
@@ -349,7 +349,7 @@ def main() -> None:
     generate_alternate_collection_docs()
     generate_test_queries_file()
 
-    print("\n✅ Test data generation complete!")
+    print("\n[SUCCESS] Test data generation complete!")
     print("\nNext steps:")
     print("1. Ingest pandas_docs collection:")
     print("   python -m src.cli ingest --input data/raw/test_docs/pandas_docs --collection pandas_docs --library pandas --version 2.0.0")
@@ -362,4 +362,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
