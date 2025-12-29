@@ -11,7 +11,12 @@ graph TD
         User([User])
         Streamlit["Streamlit UI (src/ui.py)"]
         CLI["CLI Command (app.py ask)"]
-        Cache["St. Cache Resource (Holds Heavy Services)"]
+    end
+
+    %% --- API Layer ---
+    subgraph API ["FastAPI Backend"]
+        FastAPI["FastAPI Server (api/main.py)"]
+        Routes["API Routes (/ask, /search, /collections)"]
     end
 
     %% --- Orchestration Layer ---
@@ -45,13 +50,11 @@ graph TD
     User --> Streamlit
     User --> CLI
 
-    Streamlit --> Cache
-    Cache -->|Init| SearchSvc
-    Cache -->|Init| RerankSvc
-    Cache -->|Init| LLMSvc
+    Streamlit -->|HTTP| FastAPI
+    CLI -->|Direct| RAG
 
-    Streamlit -->|"1: Ask query"| RAG
-    CLI -->|"1: Ask query"| RAG
+    FastAPI --> Routes
+    Routes -->|"1: Ask query"| RAG
 
     %% --- Connections: RAG Pipeline ---
     RAG -->|"2: Get candidates"| SearchSvc
@@ -75,12 +78,14 @@ graph TD
 
     %% --- Styling ---
     classDef ui fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef api fill:#fff9c4,stroke:#f57f17,stroke-width:2px;
     classDef logic fill:#fff3e0,stroke:#ff6f00,stroke-width:2px;
     classDef service fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
     classDef infra fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
     classDef hardware fill:#424242,stroke:#000,stroke-width:2px,color:#fff;
 
-    class Streamlit,CLI,Cache ui;
+    class Streamlit,CLI ui;
+    class FastAPI,Routes api;
     class RAG,ContextBuilder logic;
     class SearchSvc,RerankSvc,LLMSvc,VectorSvc service;
     class Qdrant,OllamaProc,FileSystem infra;
@@ -100,11 +105,12 @@ graph TD
 ## Tech Stack
 
 - **Vector DB:** Qdrant (running in Docker)
-- **Application Framework:** Streamlit
+- **Backend API:** FastAPI with Uvicorn
+- **Frontend:** Streamlit
 - **Embedding Model:** `BAAI/bge-m3` (via `FlagEmbedding`)
 - **Reranker Model:** `BAAI/bge-reranker-v2-m3`
 - **LLM:** Ollama with `Llama-3-8B-Instruct`
-- **Core Libraries:** `langchain`, `sentence-transformers`, `torch`, `qdrant-client`
+- **Core Libraries:** `langchain`, `sentence-transformers`, `torch`, `qdrant-client`, `fastapi`, `httpx`
 
 ## Architecture
 
