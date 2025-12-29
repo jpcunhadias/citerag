@@ -1,6 +1,7 @@
 """FastAPI dependencies for service injection."""
 
 import logging
+from typing import Optional
 
 from qdrant_client import QdrantClient
 
