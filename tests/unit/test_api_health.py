@@ -26,7 +26,7 @@ def test_health_check_unhealthy_qdrant(monkeypatch):
     monkeypatch.setattr("api.routes.health.check_ollama", lambda: "healthy")
 
     response = client.get("/health")
-    assert response.status_code == 200
+    assert response.status_code == 503
     assert response.json() == {
         "status": "unhealthy",
         "services": {"qdrant": "unhealthy", "ollama": "healthy"},
@@ -39,7 +39,7 @@ def test_health_check_unhealthy_ollama(monkeypatch):
     monkeypatch.setattr("api.routes.health.check_ollama", lambda: "unhealthy")
 
     response = client.get("/health")
-    assert response.status_code == 200
+    assert response.status_code == 503
     assert response.json() == {
         "status": "unhealthy",
         "services": {"qdrant": "healthy", "ollama": "unhealthy"},
