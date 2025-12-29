@@ -23,7 +23,8 @@ API_BASE_URL: str = os.getenv("API_BASE_URL", "http://localhost:8000")
 # CORS Configuration (can be overridden by environment variables)
 # In production, this should be set to specific origins (comma-separated)
 # Example: "https://app.example.com,https://admin.example.com"
-CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:8501")
+DEFAULT_CORS_ORIGIN: str = "http://localhost:8501"  # Default for local development
+CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGIN)
 
 # Paths
 BASE_DOCS_DIR: Path = Path("data/raw")
