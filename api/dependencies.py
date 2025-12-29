@@ -1,7 +1,6 @@
 """FastAPI dependencies for service injection."""
 
 import logging
-from functools import lru_cache
 
 from qdrant_client import QdrantClient
 
