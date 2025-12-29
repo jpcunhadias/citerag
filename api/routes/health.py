@@ -3,7 +3,7 @@
 import logging
 
 import requests
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 from qdrant_client import QdrantClient
 
 from api.models import HealthResponse
@@ -47,17 +47,22 @@ def check_ollama() -> str:
 
 
 @router.get("", response_model=HealthResponse)
-async def health_check() -> HealthResponse:
+async def health_check(response: Response) -> HealthResponse:
     """
     Health check endpoint.
 
     Returns:
         HealthResponse with overall status and individual service statuses
+        Status code 200 for healthy, 503 for unhealthy
     """
     qdrant_status = check_qdrant()
     ollama_status = check_ollama()
 
     overall_status = "healthy" if qdrant_status == "healthy" and ollama_status == "healthy" else "unhealthy"
+
+    # Set appropriate status code for load balancers and monitoring tools
+    if overall_status == "unhealthy":
+        response.status_code = 503
 
     return HealthResponse(
         status=overall_status,
