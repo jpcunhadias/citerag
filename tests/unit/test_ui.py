@@ -2,12 +2,11 @@
 
 from unittest.mock import MagicMock, patch
 
-import pandas as pd
 import pytest
 
+from src.api_client import APIClient, APIClientError
 from src.models import Citation
 from src.ui import build_citations_data, get_collections, init_state
-from src.api_client import APIClient, APIClientError
 
 # Constants for tests
 FALLBACK_COLLECTIONS = ["pandas_docs"]
@@ -54,6 +53,7 @@ class TestBuildCitationsData:
         result = build_citations_data(citations)
         assert result[0]["Header"] == "File 1"
 
+
 # Using patch as a decorator for the whole class
 @patch("streamlit.cache_data", lambda **kwargs: lambda func: func)
 class TestGetCollections:
@@ -67,11 +67,28 @@ class TestGetCollections:
         mock_api_client.get_collections.assert_called_once()
 
     @patch("src.ui.logger")
-    def test_get_collections_error_fallback(self, mock_logger, mock_api_client):
+    def test_get_collections_error_fallback(self, mock_logger):
         """Test fallback when collection retrieval fails."""
-        mock_api_client.get_collections.side_effect = APIClientError("Connection failed")
-        collections = get_collections(mock_api_client)
-        assert collections == FALLBACK_COLLECTIONS
+        # The cache decorator is patched at class level to be a no-op
+        # Create a completely fresh mock that will raise an error
+        error_mock = MagicMock()
+        error_mock.get_collections = MagicMock(
+            side_effect=APIClientError("Connection failed")
+        )
+
+        # Verify the mock will actually raise the error
+        with pytest.raises(APIClientError):
+            error_mock.get_collections()
+
+        # Clear cache if it exists (Streamlit cache functions have a clear() method)
+        if hasattr(get_collections, "clear"):
+            get_collections.clear()
+
+        # Now test the actual function - should execute fresh due to cache patch
+        collections = get_collections(error_mock)
+        assert collections == FALLBACK_COLLECTIONS, (
+            f"Expected {FALLBACK_COLLECTIONS}, got {collections}"
+        )
         mock_logger.error.assert_called_once()
 
 
@@ -92,7 +109,10 @@ class TestSessionStateManagement:
         """Test that init_state preserves existing messages and client."""
         existing_messages = [{"role": "user", "content": "test"}]
         mock_client = MagicMock()
-        mock_st.session_state = {"messages": existing_messages, "api_client": mock_client}
+        mock_st.session_state = {
+            "messages": existing_messages,
+            "api_client": mock_client,
+        }
         init_state()
         assert mock_st.session_state["messages"] == existing_messages
         assert mock_st.session_state["api_client"] == mock_client

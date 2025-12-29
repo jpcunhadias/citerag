@@ -57,8 +57,9 @@ services:
       context: .
       dockerfile: Dockerfile.streamlit
     container_name: rag-streamlit
-    ports:
-      - "8501:8501"
+    network_mode: host
+    # Using host network mode to access API on localhost:8000
+    # This matches the API service which also uses host network mode
     volumes:
       - .:/app
     environment:
@@ -66,8 +67,6 @@ services:
       - PYTHONUNBUFFERED=1
     depends_on:
       - api
-    # Note: condition removed because API uses host network mode
-    # Streamlit will connect to API via http://localhost:8000 (from host network)
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8501/_stcore/health || exit 1"]
@@ -75,8 +74,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
-    networks:
-      - rag-network
 
 volumes:
   qdrant_storage:
