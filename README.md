@@ -128,7 +128,7 @@ The system is composed of two main pipelines:
 
 ### Prerequisites
 
-- Python 3.9+
+- Python (see `.python-version` file)
 - Docker and Docker Compose
 - [Ollama](https://ollama.com/) installed and running.
 
