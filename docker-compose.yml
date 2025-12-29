@@ -39,12 +39,12 @@ services:
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
-      - API_BASE_URL=http://0.0.0.0:8000
       - PYTHONUNBUFFERED=1
     depends_on:
       - qdrant
     restart: unless-stopped
     healthcheck:
+      # Health check uses localhost since it runs inside the container
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 -O- http://localhost:8000/health > /dev/null || exit 1"]
       interval: 30s
       timeout: 10s
@@ -71,6 +71,7 @@ services:
       - api
     restart: unless-stopped
     healthcheck:
+      # Health check uses localhost since it runs inside the container
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8501/_stcore/health || exit 1"]
       interval: 30s
       timeout: 10s
