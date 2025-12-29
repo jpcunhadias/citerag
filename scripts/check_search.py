@@ -26,14 +26,14 @@ def check_vector_names():
     import inspect
     source = inspect.getsource(index_to_qdrant)
     if f"DENSE_VECTOR_NAME" in source:
-        print("✅ Ingestion uses DENSE_VECTOR_NAME constant")
+        print("[PASS] Ingestion uses DENSE_VECTOR_NAME constant")
     else:
-        print("⚠️  Check if ingestion uses DENSE_VECTOR_NAME constant")
+        print("[WARNING] Check if ingestion uses DENSE_VECTOR_NAME constant")
 
     if f"SPARSE_VECTOR_NAME" in source:
-        print("✅ Ingestion uses SPARSE_VECTOR_NAME constant")
+        print("[PASS] Ingestion uses SPARSE_VECTOR_NAME constant")
     else:
-        print("⚠️  Check if ingestion uses SPARSE_VECTOR_NAME constant")
+        print("[WARNING] Check if ingestion uses SPARSE_VECTOR_NAME constant")
     print()
 
 
@@ -64,15 +64,15 @@ def check_payload_keys():
     missing = []
     for key in required_keys:
         if f'"{key}"' in source or f"'{key}'" in source:
-            print(f"✅ Search extracts '{key}'")
+            print(f"[PASS] Search extracts '{key}'")
         else:
             missing.append(key)
-            print(f"❌ Search missing '{key}'")
+            print(f"[FAIL] Search missing '{key}'")
 
     if missing:
-        print(f"\n⚠️  Missing keys in search extraction: {missing}")
+        print(f"\n[WARNING] Missing keys in search extraction: {missing}")
     else:
-        print("\n✅ All required keys are extracted")
+        print("\n[PASS] All required keys are extracted")
     print()
 
 
@@ -94,14 +94,14 @@ def check_embed_query_shape():
     import numpy as np
     if isinstance(dense_vec, np.ndarray):
         dense_list = dense_vec.tolist()
-        print(f"✅ Dense vector converted to list: {type(dense_list)}")
+        print(f"[PASS] Dense vector converted to list: {type(dense_list)}")
         print(f"   List length: {len(dense_list)}")
     else:
-        print("⚠️  Dense vector is not numpy array")
+        print("[WARNING] Dense vector is not numpy array")
 
     from src.utils.qdrant import convert_sparse_dict_to_qdrant_sparsevector
     sparse_vector = convert_sparse_dict_to_qdrant_sparsevector(sparse_dict)
-    print(f"✅ Sparse vector converted: {type(sparse_vector)}")
+    print(f"[PASS] Sparse vector converted: {type(sparse_vector)}")
     print(f"   Indices sorted: {sparse_vector.indices == sorted(sparse_vector.indices)}")
     print()
 
@@ -118,17 +118,17 @@ def check_fusion_api():
 
     # Check fusion API uses Prefetch + FusionQuery
     if "Prefetch" in source and "FusionQuery" in source:
-        print("✅ Fusion API uses Prefetch with FusionQuery")
+        print("[PASS] Fusion API uses Prefetch with FusionQuery")
     else:
-        print("❌ Fusion API does not appear to use Prefetch/FusionQuery")
+        print("[FAIL] Fusion API does not appear to use Prefetch/FusionQuery")
 
     # Check with_payload
     payload_count = source.count("with_payload=True")
-    print(f"✅ with_payload=True appears {payload_count} times")
+    print(f"[PASS] with_payload=True appears {payload_count} times")
     if payload_count >= 3:
         print("   (fusion query + 2 fallback queries)")
     else:
-        print(f"   ⚠️  Expected 3, found {payload_count}")
+        print(f"   [WARNING] Expected 3, found {payload_count}")
     print()
 
 
@@ -149,29 +149,29 @@ def check_fallback_path():
         and "min_prefetch_limit" in source
         and "prefetch_multiplier" in source
     ):
-        print("✅ prefetch_limit/prefetch_k uses min_prefetch_limit and prefetch_multiplier (e.g. max(self.min_prefetch_limit, top_k * self.prefetch_multiplier))")
+        print("[PASS] prefetch_limit/prefetch_k uses min_prefetch_limit and prefetch_multiplier (e.g. max(self.min_prefetch_limit, top_k * self.prefetch_multiplier))")
     else:
-        print("❌ prefetch_limit/prefetch_k calculation not found or does not use min_prefetch_limit/prefetch_multiplier")
+        print("[FAIL] prefetch_limit/prefetch_k calculation not found or does not use min_prefetch_limit/prefetch_multiplier")
 
     # Check rrf_k
     service = SearchService(QdrantClient(), VectorService())
     if service.rrf_k == 60:
-        print(f"✅ rrf_k = {service.rrf_k}")
+        print(f"[PASS] rrf_k = {service.rrf_k}")
     else:
-        print(f"❌ rrf_k = {service.rrf_k} (expected 60)")
+        print(f"[FAIL] rrf_k = {service.rrf_k} (expected 60)")
 
     # Check RRF formula
     rrf_source = inspect.getsource(service.reciprocal_rank_fusion)
     if "1.0 / (self.rrf_k + rank)" in rrf_source:
-        print("✅ RRF formula: 1.0 / (rrf_k + rank)")
+        print("[PASS] RRF formula: 1.0 / (rrf_k + rank)")
     else:
-        print("❌ RRF formula not found")
+        print("[FAIL] RRF formula not found")
 
     # Check score assignment
     if "score=fused_score" in rrf_source or "score=fused_rrf_score" in rrf_source:
-        print("✅ Uses fused RRF score (not original Qdrant score)")
+        print("[PASS] Uses fused RRF score (not original Qdrant score)")
     else:
-        print("⚠️  Check score assignment in RRF")
+        print("[WARNING] Check score assignment in RRF")
     print()
 
 
@@ -186,17 +186,17 @@ def check_filters():
     # Test invalid key
     try:
         service.hybrid_search("test", "test_collection", top_k=5, filters={"invalid": "key"})
-        print("❌ Invalid filter key not rejected")
+        print("[FAIL] Invalid filter key not rejected")
     except ValueError as e:
-        print(f"✅ Invalid filter key rejected: {e}")
+        print(f"[PASS] Invalid filter key rejected: {e}")
 
     # Check allowed keys
     import inspect
     source = inspect.getsource(service.hybrid_search)
     if 'allowed_keys = {"library", "version"}' in source:
-        print("✅ Filter keys limited to library and version")
+        print("[PASS] Filter keys limited to library and version")
     else:
-        print("⚠️  Check filter key validation")
+        print("[WARNING] Check filter key validation")
     print()
 
 
@@ -211,13 +211,13 @@ def check_cli_routing():
         app_source = f.read()
 
     if 'sys.argv[1] in ("ingest", "search")' in app_source:
-        print("✅ app.py routes both ingest and search commands")
+        print("[PASS] app.py routes both ingest and search commands")
     else:
-        print("⚠️  Check app.py routing")
+        print("[WARNING] Check app.py routing")
 
     # Check CLI has search command
     from src.cli import search_command
-    print("✅ search_command function exists")
+    print("[PASS] search_command function exists")
     print()
 
 
