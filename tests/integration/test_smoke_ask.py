@@ -10,8 +10,8 @@ from qdrant_client import QdrantClient
 
 from src.config import QDRANT_HOST, QDRANT_PORT, RAG_MAX_CONTEXT_CHARS
 
-# Use smoke_docs collection for testing
-TEST_COLLECTION = "smoke_docs"
+# Use test_collection for testing (fallback to smoke_docs if test_collection doesn't exist)
+TEST_COLLECTION = "test_collection"
 from src.ingest import VectorService
 from src.llm import OllamaClient
 from src.rag import RAGService
@@ -19,7 +19,7 @@ from src.rerank import RerankerService
 from src.search import SearchService
 
 
-def test_positive_query():
+def _test_positive_query():
     """Test 1: Positive query that should exist in docs."""
     print("\n" + "=" * 80)
     print("TEST 1: Positive Query (should find answer with citations)")
@@ -53,16 +53,16 @@ def test_positive_query():
     has_citations = bool(re.search(citation_pattern, response.answer))
 
     if has_citations:
-        print("✅ PASS: Answer contains citations")
+        print("[PASS] Answer contains citations")
     else:
-        print("❌ FAIL: Answer does not contain citations")
+        print("[FAIL] Answer does not contain citations")
         if response.answer.strip() == "I couldn't find this in the indexed documentation.":
             print("   (This is a refusal, which is acceptable if no relevant docs found)")
 
     return has_citations or response.answer.strip() == "I couldn't find this in the indexed documentation."
 
 
-def test_negative_query():
+def _test_negative_query():
     """Test 2: Nonsense query should return refusal."""
     print("\n" + "=" * 80)
     print("TEST 2: Negative Query (nonsense should return refusal)")
@@ -94,16 +94,16 @@ def test_negative_query():
     has_no_citations = len(response.citations) == 0
 
     if is_refusal and has_no_citations:
-        print("✅ PASS: Returns refusal with no citations")
+        print("[PASS] Returns refusal with no citations")
     elif is_refusal:
-        print("⚠️ WARNING: Returns refusal but has citations (might be acceptable)")
+        print("[WARNING] Returns refusal but has citations (might be acceptable)")
     else:
-        print(f"❌ FAIL: Expected refusal '{refusal_string}', got: {response.answer[:100]}")
+        print(f"[FAIL] Expected refusal '{refusal_string}', got: {response.answer[:100]}")
 
     return is_refusal
 
 
-def test_budget_truncation():
+def _test_budget_truncation():
     """Test 3: Budget truncation with lower RAG_MAX_CONTEXT_CHARS."""
     print("\n" + "=" * 80)
     print("TEST 3: Budget Truncation (lower RAG_MAX_CONTEXT_CHARS)")
@@ -140,26 +140,26 @@ def test_budget_truncation():
     context2, citations2, _ = rag_service.build_context(results)
     config_module.RAG_MAX_CONTEXT_CHARS = original_budget  # Restore
 
-    print(f"With low budget (500): {len(citations2)} chunks, {len(context2)} chars")
+    print(f"With low budget (500): {len(citations2)} chunks, {len(citations2)} chars")
 
     # Check labels are consistent
     labels1 = [c.label for c in citations1]
     labels2 = [c.label for c in citations2]
 
     if labels2 == [str(i) for i in range(1, len(citations2) + 1)]:
-        print("✅ PASS: Labels are consistent (1, 2, 3...)")
+        print("[PASS] Labels are consistent (1, 2, 3...)")
     else:
-        print(f"❌ FAIL: Labels inconsistent: {labels2}")
+        print(f"[FAIL] Labels inconsistent: {labels2}")
 
     if len(citations2) < len(citations1):
-        print("✅ PASS: Budget truncation works (fewer chunks with lower budget)")
+        print("[PASS] Budget truncation works (fewer chunks with lower budget)")
     else:
-        print("⚠️ WARNING: Budget truncation may not be working")
+        print("[WARNING] Budget truncation may not be working")
 
     return len(citations2) <= len(citations1) and labels2 == [str(i) for i in range(1, len(citations2) + 1)]
 
 
-def test_no_rerank():
+def _test_no_rerank():
     """Test 4: --no-rerank flag should use fused retrieval scores."""
     print("\n" + "=" * 80)
     print("TEST 4: No Rerank (should use fused retrieval scores)")
@@ -208,13 +208,13 @@ def test_no_rerank():
         score_no_rerank = response_no_rerank.citations[0].score
 
         if score_rerank != score_no_rerank:
-            print("✅ PASS: Scores differ between rerank and no-rerank (as expected)")
+            print("[PASS] Scores differ between rerank and no-rerank (as expected)")
             return True
         else:
-            print("⚠️ WARNING: Scores are the same (might be coincidence)")
+            print("[WARNING] Scores are the same (might be coincidence)")
             return True  # Still pass, might be edge case
     else:
-        print("⚠️ WARNING: No citations to compare")
+        print("[WARNING] No citations to compare")
         return True
 
 
@@ -229,23 +229,33 @@ def main():
     collections = qdrant_client.get_collections().collections
     collection_names = [c.name for c in collections]
 
+    # Try test_collection first, fallback to smoke_docs if available
+    collection_to_use = TEST_COLLECTION
     if TEST_COLLECTION not in collection_names:
-        print(f"❌ ERROR: Collection '{TEST_COLLECTION}' not found.")
-        print(f"Available collections: {collection_names}")
-        print("Please run ingestion first.")
-        return 1
+        if "smoke_docs" in collection_names:
+            collection_to_use = "smoke_docs"
+            print(f"[WARNING] Collection '{TEST_COLLECTION}' not found, using 'smoke_docs'")
+        else:
+            print(f"[FAIL] ERROR: Collection '{TEST_COLLECTION}' or 'smoke_docs' not found.")
+            print(f"Available collections: {collection_names}")
+            print("Please run ingestion first.")
+            return 1
+
+    # Update TEST_COLLECTION for the test functions
+    import tests.test_smoke_ask as test_module
+    test_module.TEST_COLLECTION = collection_to_use
 
     results = []
-    results.append(("Positive Query", test_positive_query()))
-    results.append(("Negative Query", test_negative_query()))
-    results.append(("Budget Truncation", test_budget_truncation()))
-    results.append(("No Rerank", test_no_rerank()))
+    results.append(("Positive Query", _test_positive_query()))
+    results.append(("Negative Query", _test_negative_query()))
+    results.append(("Budget Truncation", _test_budget_truncation()))
+    results.append(("No Rerank", _test_no_rerank()))
 
     print("\n" + "=" * 80)
     print("SUMMARY")
     print("=" * 80)
     for name, passed in results:
-        status = "✅ PASS" if passed else "❌ FAIL"
+        status = "[PASS]" if passed else "[FAIL]"
         print(f"{status}: {name}")
 
     all_passed = all(result[1] for result in results)

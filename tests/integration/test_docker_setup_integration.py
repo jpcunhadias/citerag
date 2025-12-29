@@ -15,12 +15,12 @@ def test_api_health(base_url: str = "http://localhost:8000") -> bool:
         response = requests.get(f"{base_url}/health", timeout=10)
         response.raise_for_status()
         data = response.json()
-        print(f"  ✓ API is responding")
+        print(f"  [PASS] API is responding")
         print(f"  Status: {data['status']}")
         print(f"  Services: {data['services']}")
         return data["status"] == "healthy"
     except Exception as e:
-        print(f"  ✗ API health check failed: {e}")
+        print(f"  [FAIL] API health check failed: {e}")
         return False
 
 
@@ -32,11 +32,11 @@ def test_api_collections(base_url: str = "http://localhost:8000") -> bool:
         response.raise_for_status()
         data = response.json()
         collections = data.get("collections", [])
-        print(f"  ✓ Collections endpoint working")
+        print(f"  [PASS] Collections endpoint working")
         print(f"  Found {len(collections)} collections: {collections}")
         return True
     except Exception as e:
-        print(f"  ✗ Collections endpoint failed: {e}")
+        print(f"  [FAIL] Collections endpoint failed: {e}")
         return False
 
 
@@ -44,7 +44,7 @@ def test_api_search(base_url: str = "http://localhost:8000", collection: Optiona
     """Test API search endpoint."""
     print("\nTesting API search endpoint...")
     if not collection:
-        print("  ⚠ Skipping search test (no collection specified)")
+        print("  [WARNING] Skipping search test (no collection specified)")
         return True
 
     try:
@@ -57,11 +57,11 @@ def test_api_search(base_url: str = "http://localhost:8000", collection: Optiona
         response.raise_for_status()
         data = response.json()
         results = data.get("results", [])
-        print(f"  ✓ Search endpoint working")
+        print(f"  [PASS] Search endpoint working")
         print(f"  Found {len(results)} results")
         return True
     except Exception as e:
-        print(f"  ✗ Search endpoint failed: {e}")
+        print(f"  [FAIL] Search endpoint failed: {e}")
         return False
 
 
@@ -69,7 +69,7 @@ def test_api_ask(base_url: str = "http://localhost:8000", collection: Optional[s
     """Test API ask endpoint."""
     print("\nTesting API ask endpoint...")
     if not collection:
-        print("  ⚠ Skipping ask test (no collection specified)")
+        print("  [WARNING] Skipping ask test (no collection specified)")
         return True
 
     try:
@@ -87,14 +87,14 @@ def test_api_ask(base_url: str = "http://localhost:8000", collection: Optional[s
         data = response.json()
         answer = data.get("answer", "")
         citations = data.get("citations", [])
-        print(f"  ✓ Ask endpoint working")
+        print(f"  [PASS] Ask endpoint working")
         print(f"  Answer length: {len(answer)} characters")
         print(f"  Citations: {len(citations)}")
         if answer:
             print(f"  Answer preview: {answer[:100]}...")
         return True
     except Exception as e:
-        print(f"  ✗ Ask endpoint failed: {e}")
+        print(f"  [FAIL] Ask endpoint failed: {e}")
         return False
 
 
@@ -104,10 +104,10 @@ def test_streamlit(base_url: str = "http://localhost:8501") -> bool:
     try:
         response = requests.get(base_url, timeout=10)
         response.raise_for_status()
-        print(f"  ✓ Streamlit UI is accessible")
+        print(f"  [PASS] Streamlit UI is accessible")
         return True
     except Exception as e:
-        print(f"  ✗ Streamlit UI not accessible: {e}")
+        print(f"  [FAIL] Streamlit UI not accessible: {e}")
         return False
 
 
@@ -158,16 +158,16 @@ def main() -> int:
     print("=" * 60)
     all_passed = True
     for name, passed in results:
-        status = "✓ PASS" if passed else "✗ FAIL"
+        status = "[PASS]" if passed else "[FAIL]"
         print(f"{name:20s}: {status}")
         if not passed:
             all_passed = False
 
     if all_passed:
-        print("\n🎉 All tests passed!")
+        print("\n[SUCCESS] All tests passed!")
         return 0
     else:
-        print("\n⚠ Some tests failed. Check the output above for details.")
+        print("\n[WARNING] Some tests failed. Check the output above for details.")
         return 1
 
 

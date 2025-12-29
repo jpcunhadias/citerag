@@ -10,9 +10,9 @@ def test_services():
         client = OllamaClient()
         # Should be fast if model is loaded
         resp = client.generate("Reply with one word: Online")
-        print(f"✅ LLM Response: {resp}")
+        print(f"[PASS] LLM Response: {resp}")
     except Exception as e:
-        print(f"❌ LLM Failed: {e}")
+        print(f"[FAIL] LLM Failed: {e}")
         sys.exit(1)
 
     print("\n--- 2. Testing Reranker (GPU Load) ---")
@@ -26,15 +26,14 @@ def test_services():
         ranked = reranker.rerank("fruit", docs, top_n=1)
 
         top_doc = ranked[0]
-        print(f"✅ Reranker Top Result: {top_doc.text}")
+        print(f"[PASS] Reranker Top Result: {top_doc.text}")
         print(f"   New Score: {top_doc.score:.4f}")
 
         if top_doc.text != "Apple":
-            print("⚠️ Logic Warning: Expected 'Apple' to win.")
+            print("[WARNING] Logic Warning: Expected 'Apple' to win.")
     except Exception as e:
-        print(f"❌ Reranker Failed: {e}")
+        print(f"[FAIL] Reranker Failed: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
     test_services()
-

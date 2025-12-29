@@ -251,7 +251,7 @@ This will output a detailed answer along with the sources used to generate it.
 Run the automated test script to validate your setup:
 
 ```bash
-python3 scripts/test_docker_setup.py [collection_name]
+python3 tests/integration/test_docker_setup_integration.py [collection_name]
 ```
 
 This will test:
@@ -261,4 +261,4 @@ This will test:
 - Ask/RAG endpoint (if collection provided)
 - Streamlit UI accessibility
 
-See `scripts/test_docker_setup.py` for more details.
+See `tests/integration/test_docker_setup_integration.py` for more details.

@@ -9,11 +9,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.api_client import APIClient, APIClientError
 
-# Use smoke_docs collection for testing
-TEST_COLLECTION = "smoke_docs"
+# Use test_collection for testing (fallback to smoke_docs if test_collection doesn't exist)
+TEST_COLLECTION = "test_collection"
 
 
-def test_positive_query(api_client: APIClient):
+def _test_positive_query(api_client: APIClient):
     """Test 1: Positive query that should exist in docs."""
     print("\n" + "=" * 80)
     print("TEST 1: Positive Query (should find answer with citations)")
@@ -38,20 +38,20 @@ def test_positive_query(api_client: APIClient):
         has_citations = bool(re.search(citation_pattern, response.answer))
 
         if has_citations:
-            print("✅ PASS: Answer contains citations")
+            print("[PASS] Answer contains citations")
         else:
-            print("❌ FAIL: Answer does not contain citations")
+            print("[FAIL] Answer does not contain citations")
             if "couldn't find" in response.answer:
                 print("   (This is a refusal, which is acceptable if no relevant docs found)")
 
         return has_citations or "couldn't find" in response.answer
 
     except APIClientError as e:
-        print(f"❌ FAIL: API Client error: {e}")
+        print(f"[FAIL] API Client error: {e}")
         return False
 
 
-def test_negative_query(api_client: APIClient):
+def _test_negative_query(api_client: APIClient):
     """Test 2: Nonsense query should return refusal."""
     print("\n" + "=" * 80)
     print("TEST 2: Negative Query (nonsense should return refusal)")
@@ -77,14 +77,14 @@ def test_negative_query(api_client: APIClient):
         has_no_citations = len(response.citations) == 0
 
         if is_refusal and has_no_citations:
-            print("✅ PASS: Returns refusal with no citations")
+            print("[PASS] Returns refusal with no citations")
         else:
-            print(f"❌ FAIL: Expected refusal, got: {response.answer[:100]}")
+            print(f"[FAIL] Expected refusal, got: {response.answer[:100]}")
 
         return is_refusal and has_no_citations
 
     except APIClientError as e:
-        print(f"❌ FAIL: API Client error: {e}")
+        print(f"[FAIL] API Client error: {e}")
         return False
 
 
@@ -98,24 +98,34 @@ def main():
 
     try:
         collections = api_client.get_collections()
+        # Try test_collection first, fallback to smoke_docs if available
+        collection_to_use = TEST_COLLECTION
         if TEST_COLLECTION not in collections:
-            print(f"❌ ERROR: Collection '{TEST_COLLECTION}' not found.")
-            print(f"Available collections: {collections}")
-            print("Please run ingestion for smoke_docs first.")
-            return 1
+            if "smoke_docs" in collections:
+                collection_to_use = "smoke_docs"
+                print(f"[WARNING] Collection '{TEST_COLLECTION}' not found, using 'smoke_docs'")
+            else:
+                print(f"[FAIL] ERROR: Collection '{TEST_COLLECTION}' or 'smoke_docs' not found.")
+                print(f"Available collections: {collections}")
+                print("Please run ingestion first.")
+                return 1
+
+        # Update TEST_COLLECTION for the test functions
+        import tests.test_e2e_api as test_module
+        test_module.TEST_COLLECTION = collection_to_use
     except APIClientError as e:
-        print(f"❌ ERROR: Could not connect to API to get collections: {e}")
+        print(f"[FAIL] ERROR: Could not connect to API to get collections: {e}")
         return 1
 
     results = []
-    results.append(("Positive Query", test_positive_query(api_client)))
-    results.append(("Negative Query", test_negative_query(api_client)))
+    results.append(("Positive Query", _test_positive_query(api_client)))
+    results.append(("Negative Query", _test_negative_query(api_client)))
 
     print("\n" + "=" * 80)
     print("SUMMARY")
     print("=" * 80)
     for name, passed in results:
-        status = "✅ PASS" if passed else "❌ FAIL"
+        status = "[PASS]" if passed else "[FAIL]"
         print(f"{status}: {name}")
 
     all_passed = all(result[1] for result in results)
@@ -124,3 +134,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+

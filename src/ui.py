@@ -49,18 +49,18 @@ def build_citations_data(citations: list[Citation]) -> list[dict[str, str]]:
 
 
 @st.cache_data(ttl=60)  # Cache for 60 seconds
-def get_collections(api_client: APIClient) -> list[str]:
+def get_collections(_api_client: APIClient) -> list[str]:
     """
     Fetch available collections from API.
 
     Args:
-        api_client: APIClient instance
+        _api_client: APIClient instance (underscore prefix tells Streamlit not to hash it)
 
     Returns:
         List of collection names
     """
     try:
-        collections = api_client.get_collections()
+        collections = _api_client.get_collections()
         return collections
     except APIClientError as e:
         logger.error(f"Error fetching collections: {e}")
