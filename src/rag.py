@@ -2,12 +2,8 @@
 
 import logging
 import re
-from typing import Optional
-
-from qdrant_client import QdrantClient
 
 from src.config import RAG_MAX_CONTEXT_CHARS, RAG_REFUSAL_MESSAGE
-from src.ingest import VectorService
 from src.llm import OllamaClient
 from src.models import Citation, RAGResponse, SearchResult
 from src.rerank import RerankerService
@@ -37,9 +33,7 @@ class RAGService:
         self.reranker_service = reranker_service
         self.llm_client = llm_client
 
-    def build_context(
-        self, chunks: list[SearchResult]
-    ) -> tuple[str, list[Citation], list[str]]:
+    def build_context(self, chunks: list[SearchResult]) -> tuple[str, list[Citation], list[str]]:
         """
         Build formatted context string from search results with character budget.
 
@@ -117,12 +111,13 @@ class RAGService:
         Returns:
             RAGResponse object with answer, citations, and metadata.
         """
-        logger.info(f"RAG pipeline started: query='{query[:50]}...', top_k={top_k}, top_n={top_n}, rerank={rerank}")
+        logger.info(
+            f"RAG pipeline started: query='{query[:50]}...', "
+            f"top_k={top_k}, top_n={top_n}, rerank={rerank}"
+        )
 
         # Step 1: Hybrid search
-        results = self.search_service.hybrid_search(
-            query=query, collection=collection, top_k=top_k
-        )
+        results = self.search_service.hybrid_search(query=query, collection=collection, top_k=top_k)
         logger.info(f"Search returned {len(results)} results")
 
         # Step 2: Rerank if enabled
@@ -174,4 +169,3 @@ class RAGService:
             context_used=context_str if debug else None,
             used_chunk_ids=used_chunk_ids,
         )
-

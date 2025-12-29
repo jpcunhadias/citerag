@@ -1,7 +1,5 @@
 """Unit tests for Pydantic models (Citation, RAGResponse)."""
 
-import pytest
-
 from src.models import Citation, RAGResponse
 
 
@@ -165,4 +163,3 @@ class TestRAGResponse:
         assert len(response.citations) == len(response.used_chunk_ids)
         citation_chunk_ids = [c.chunk_id for c in response.citations]
         assert set(citation_chunk_ids) == set(response.used_chunk_ids)
-

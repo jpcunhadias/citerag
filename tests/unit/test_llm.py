@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
-from requests.exceptions import RequestException, Timeout
+from requests.exceptions import Timeout
 
 from src.llm import OllamaClient, OllamaConnectionError
 
@@ -94,9 +94,7 @@ class TestOllamaClient:
     def test_generate_raises_on_http_error(self, mock_post):
         """Test that generate raises OllamaConnectionError on HTTP error."""
         mock_response = MagicMock()
-        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
-            "404 Not Found"
-        )
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("404 Not Found")
         mock_post.return_value = mock_response
 
         client = OllamaClient()
@@ -159,4 +157,3 @@ class TestOllamaClient:
 
         # Check that original exception is preserved
         assert exc_info.value.__cause__ == original_error
-

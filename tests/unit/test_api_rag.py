@@ -5,9 +5,8 @@ from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 
 from api.main import app
-from src.models import SearchResult, RAGResponse, Citation
 from src.llm import OllamaConnectionError
-
+from src.models import Citation, RAGResponse, SearchResult
 
 client = TestClient(app)
 

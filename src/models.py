@@ -6,8 +6,6 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-from src.config import CHUNKER_FINGERPRINT
-
 
 class SearchQuery(BaseModel):
     """Query model for search requests."""
@@ -24,9 +22,13 @@ class SearchResult(BaseModel):
     score: float = Field(..., description="Fused relevance score (higher = better)")
     text: str = Field(..., description="Text snippet from the document")
     source_path: str = Field(..., description="Source file path")
-    canonical_source_id: str = Field(..., description="Canonical source identifier (relative POSIX path)")
+    canonical_source_id: str = Field(
+        ..., description="Canonical source identifier (relative POSIX path)"
+    )
     header: Optional[str] = Field(None, description="Section header (e.g., 'DataFrame.merge')")
-    library: Optional[str] = Field(None, description="Library name (optional but recommended for filtering/display)")
+    library: Optional[str] = Field(
+        None, description="Library name (optional but recommended for filtering/display)"
+    )
     version: Optional[str] = Field(None, description="Library version (optional but recommended)")
     title: Optional[str] = Field(None, description="Document title (optional but recommended)")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Catch-all for other fields")
@@ -37,7 +39,9 @@ class Citation(BaseModel):
 
     label: str = Field(..., description="Citation label (e.g., '[1]')")
     chunk_id: str = Field(..., description="Unique chunk identifier")
-    canonical_source_id: str = Field(..., description="Canonical source identifier (relative POSIX path)")
+    canonical_source_id: str = Field(
+        ..., description="Canonical source identifier (relative POSIX path)"
+    )
     source_path: str = Field(..., description="Source file path")
     header: Optional[str] = Field(None, description="Section header (e.g., 'DataFrame.merge')")
     title: Optional[str] = Field(None, description="Document title")
@@ -60,7 +64,9 @@ class DocumentChunk(BaseModel):
     text: str = Field(..., description="Chunk text content")
     dense_vector: Optional[list[float]] = Field(None, description="Dense embedding vector")
     sparse_vector: Optional[dict[int, float]] = Field(None, description="Sparse embedding vector")
-    metadata: dict[str, Any] = Field(..., description="Metadata including source_path, header, title, library, version")
+    metadata: dict[str, Any] = Field(
+        ..., description="Metadata including source_path, header, title, library, version"
+    )
 
 
 def normalize_text_for_hashing(text: str) -> str:
@@ -104,4 +110,3 @@ def generate_chunk_id(
     hash_input = f"{canonical_source_id}|{chunker_fingerprint}|{normalized_text}"
     # Generate SHA256 hash
     return hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
-

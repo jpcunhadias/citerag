@@ -273,6 +273,70 @@ python3 app.py ask "how do i merge two dataframes?" --collection pandas_v2
 
 This will output a detailed answer along with the sources used to generate it.
 
+## Development Setup
+
+### Code Quality Tools
+
+This project uses automated code quality checks to maintain consistent code style and catch issues early.
+
+#### Pre-commit Hooks
+
+Pre-commit hooks run automatically before each commit to check formatting and linting. To set up:
+
+1. **Install pre-commit:**
+   ```bash
+   pip install pre-commit
+   ```
+
+2. **Install the git hooks:**
+   ```bash
+   pre-commit install
+   ```
+
+3. **Test the hooks (optional):**
+   ```bash
+   pre-commit run --all-files
+   ```
+
+Now, when you commit, the hooks will:
+- Auto-format code with `black`
+- Auto-fix linting issues with `ruff`
+- Check for trailing whitespace, large files, and other common issues
+- Block the commit if unfixable issues are found
+
+**Note:** You can bypass hooks with `git commit --no-verify`, but CI will still catch issues.
+
+#### Manual Code Quality Checks
+
+You can also run checks manually:
+
+```bash
+# Format code
+black src tests api scripts
+
+# Check formatting (without modifying files)
+black --check src tests api scripts
+
+# Lint code
+ruff check src tests api scripts
+
+# Auto-fix linting issues
+ruff check --fix src tests api scripts
+```
+
+#### CI Checks
+
+GitHub Actions CI runs automatically on:
+- Every push to `main`/`master`
+- Every pull request
+
+CI checks include:
+- Formatting verification (`black --check`)
+- Linting verification (`ruff check`)
+- Unit tests (`pytest tests/unit/`)
+
+All checks must pass before merging PRs.
+
 ## Testing
 
 Run the automated test script to validate your setup:

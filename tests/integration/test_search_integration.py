@@ -49,4 +49,3 @@ class TestSearchIntegration:
             assert all(r.score is not None for r in results)
             assert all(r.chunk_id for r in results)
             assert all(r.text for r in results)
-

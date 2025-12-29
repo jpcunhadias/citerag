@@ -15,7 +15,7 @@ def test_api_health(base_url: str = "http://localhost:8000") -> bool:
         # Health endpoint can return 200 (healthy) or 503 (unhealthy)
         # Both are valid responses, we just check the JSON content
         data = response.json()
-        print(f"  [PASS] API is responding")
+        print("  [PASS] API is responding")
         print(f"  Status: {data['status']}")
         print(f"  Services: {data['services']}")
         return data["status"] == "healthy"
@@ -32,7 +32,7 @@ def test_api_collections(base_url: str = "http://localhost:8000") -> bool:
         response.raise_for_status()
         data = response.json()
         collections = data.get("collections", [])
-        print(f"  [PASS] Collections endpoint working")
+        print("  [PASS] Collections endpoint working")
         print(f"  Found {len(collections)} collections: {collections}")
         return True
     except Exception as e:
@@ -40,7 +40,9 @@ def test_api_collections(base_url: str = "http://localhost:8000") -> bool:
         return False
 
 
-def test_api_search(base_url: str = "http://localhost:8000", collection: Optional[str] = None) -> bool:
+def test_api_search(
+    base_url: str = "http://localhost:8000", collection: Optional[str] = None
+) -> bool:
     """Test API search endpoint."""
     print("\nTesting API search endpoint...")
     if not collection:
@@ -57,7 +59,7 @@ def test_api_search(base_url: str = "http://localhost:8000", collection: Optiona
         response.raise_for_status()
         data = response.json()
         results = data.get("results", [])
-        print(f"  [PASS] Search endpoint working")
+        print("  [PASS] Search endpoint working")
         print(f"  Found {len(results)} results")
         return True
     except Exception as e:
@@ -81,13 +83,13 @@ def test_api_ask(base_url: str = "http://localhost:8000", collection: Optional[s
             "rerank": True,
             "debug": False,
         }
-        print(f"  Sending request (this may take a while)...")
+        print("  Sending request (this may take a while)...")
         response = requests.post(f"{base_url}/api/ask", json=payload, timeout=120)
         response.raise_for_status()
         data = response.json()
         answer = data.get("answer", "")
         citations = data.get("citations", [])
-        print(f"  [PASS] Ask endpoint working")
+        print("  [PASS] Ask endpoint working")
         print(f"  Answer length: {len(answer)} characters")
         print(f"  Citations: {len(citations)}")
         if answer:
@@ -104,7 +106,7 @@ def test_streamlit(base_url: str = "http://localhost:8501") -> bool:
     try:
         response = requests.get(base_url, timeout=10)
         response.raise_for_status()
-        print(f"  [PASS] Streamlit UI is accessible")
+        print("  [PASS] Streamlit UI is accessible")
         return True
     except Exception as e:
         print(f"  [FAIL] Streamlit UI not accessible: {e}")
@@ -175,4 +177,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

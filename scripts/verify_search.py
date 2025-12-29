@@ -100,7 +100,9 @@ def verify_scores(results: list[dict[str, Any]]) -> bool:
             print(f"[FAIL] Result {i} has non-positive score: {score}")
             return False
 
-    print(f"[PASS] All scores are positive (range: {min(r['score'] for r in results):.6f} to {max(r['score'] for r in results):.6f})")
+    min_score = min(r["score"] for r in results)
+    max_score = max(r["score"] for r in results)
+    print(f"[PASS] All scores are positive (range: {min_score:.6f} to {max_score:.6f})")
     return True
 
 
@@ -166,15 +168,14 @@ def main():
     print("=" * 60)
     print()
     print("Summary:")
-    print(f"  - Executed successfully")
-    print(f"  - Valid JSON output")
-    print(f"  - Results sorted by score (descending)")
-    print(f"  - Top result is relevant to query")
-    print(f"  - All scores are positive")
+    print("  - Executed successfully")
+    print("  - Valid JSON output")
+    print("  - Results sorted by score (descending)")
+    print("  - Top result is relevant to query")
+    print("  - All scores are positive")
 
     return 0
 
 
 if __name__ == "__main__":
     sys.exit(main())
-

@@ -33,4 +33,3 @@ async def get_collections() -> CollectionsResponse:
     except Exception as e:
         logger.error(f"Error fetching collections: {e}")
         raise HTTPException(status_code=503, detail=f"Unable to connect to Qdrant: {str(e)}") from e
-

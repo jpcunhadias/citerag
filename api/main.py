@@ -27,9 +27,7 @@ allowed_origins = [origin.strip() for origin in config.CORS_ORIGINS.split(",") i
 
 # Ensure at least one origin is configured
 if not allowed_origins:
-    logger.warning(
-        f"No CORS origins configured. Using default: {config.DEFAULT_CORS_ORIGIN}"
-    )
+    logger.warning(f"No CORS origins configured. Using default: {config.DEFAULT_CORS_ORIGIN}")
     allowed_origins = [config.DEFAULT_CORS_ORIGIN]
 
 app.add_middleware(
@@ -67,4 +65,3 @@ async def root() -> dict[str, str]:
         "docs": "/docs",
         "health": "/health",
     }
-

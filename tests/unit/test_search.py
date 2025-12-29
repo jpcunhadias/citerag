@@ -5,11 +5,10 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-from qdrant_client.models import ScoredPoint, SparseVector
+from qdrant_client.models import ScoredPoint
 
 from src.models import SearchResult
 from src.search import SearchService
-from src.utils.qdrant import convert_sparse_dict_to_qdrant_sparsevector
 
 
 def create_mock_query_response(points: list) -> MagicMock:
@@ -109,9 +108,7 @@ class TestSearchService:
         """Create SearchService instance with mocked dependencies."""
         return SearchService(mock_qdrant_client, mock_vector_service)
 
-    def test_hybrid_search_calls_embed_query_once(
-        self, search_service, mock_vector_service
-    ):
+    def test_hybrid_search_calls_embed_query_once(self, search_service, mock_vector_service):
         """Test that hybrid_search calls embed_query exactly once."""
         mock_qdrant_client = search_service.client
         mock_qdrant_client.query_points.return_value = create_mock_query_response([])
@@ -121,9 +118,7 @@ class TestSearchService:
         assert mock_vector_service.embed_query.call_count == 1
         mock_vector_service.embed_query.assert_called_once_with("test query")
 
-    def test_hybrid_search_converts_dense_to_list(
-        self, search_service, mock_vector_service
-    ):
+    def test_hybrid_search_converts_dense_to_list(self, search_service, mock_vector_service):
         """Test that dense vector is converted to list before Qdrant query."""
         mock_qdrant_client = search_service.client
         mock_qdrant_client.query_points.return_value = create_mock_query_response([])
@@ -152,9 +147,7 @@ class TestSearchService:
             call_args = mock_qdrant_client.query_points.call_args
             assert call_args is not None
 
-    def test_hybrid_search_fallback_to_python_rrf(
-        self, search_service, mock_vector_service
-    ):
+    def test_hybrid_search_fallback_to_python_rrf(self, search_service, mock_vector_service):
         """Test fallback to Python RRF when fusion API unavailable."""
         mock_qdrant_client = search_service.client
 
@@ -203,9 +196,7 @@ class TestSearchService:
         # Should return fused results
         assert len(results) <= 2
 
-    def test_hybrid_search_prefetch_k_calculation(
-        self, search_service, mock_vector_service
-    ):
+    def test_hybrid_search_prefetch_k_calculation(self, search_service, mock_vector_service):
         """Test that prefetch_k = max(50, top_k * 5) in fallback."""
         mock_qdrant_client = search_service.client
 
@@ -225,9 +216,7 @@ class TestSearchService:
                 create_mock_query_response([]),  # Sparse query
             ]
 
-            results = search_service.hybrid_search(
-                "test query", "test_collection", top_k=top_k
-            )
+            results = search_service.hybrid_search("test query", "test_collection", top_k=top_k)
 
             # Should have 2 calls: dense + sparse (fusion failed during construction)
             assert mock_qdrant_client.query_points.call_count == 2
@@ -256,9 +245,7 @@ class TestSearchService:
                 create_mock_query_response([]),  # Sparse query
             ]
 
-            search_service.hybrid_search(
-                "test query", "test_collection", top_k=top_k
-            )
+            search_service.hybrid_search("test query", "test_collection", top_k=top_k)
 
             assert mock_qdrant_client.query_points.call_count == 2
             dense_call = mock_qdrant_client.query_points.call_args_list[0]
@@ -267,32 +254,24 @@ class TestSearchService:
             assert dense_call.kwargs["limit"] == prefetch_k
             assert sparse_call.kwargs["limit"] == prefetch_k
 
-    def test_hybrid_search_filter_library_only(
-        self, search_service, mock_vector_service
-    ):
+    def test_hybrid_search_filter_library_only(self, search_service, mock_vector_service):
         """Test filter application with library only."""
         mock_qdrant_client = search_service.client
         mock_qdrant_client.query_points.return_value = create_mock_query_response([])
 
         filters = {"library": "pandas"}
-        search_service.hybrid_search(
-            "test query", "test_collection", top_k=5, filters=filters
-        )
+        search_service.hybrid_search("test query", "test_collection", top_k=5, filters=filters)
 
         # Verify filter was applied (check query_points was called with filter)
         assert mock_qdrant_client.query_points.called
 
-    def test_hybrid_search_filter_version_only(
-        self, search_service, mock_vector_service
-    ):
+    def test_hybrid_search_filter_version_only(self, search_service, mock_vector_service):
         """Test filter application with version only."""
         mock_qdrant_client = search_service.client
         mock_qdrant_client.query_points.return_value = create_mock_query_response([])
 
         filters = {"version": "2.0.0"}
-        search_service.hybrid_search(
-            "test query", "test_collection", top_k=5, filters=filters
-        )
+        search_service.hybrid_search("test query", "test_collection", top_k=5, filters=filters)
 
         assert mock_qdrant_client.query_points.called
 
@@ -304,21 +283,15 @@ class TestSearchService:
         mock_qdrant_client.query_points.return_value = create_mock_query_response([])
 
         filters = {"library": "pandas", "version": "2.0.0"}
-        search_service.hybrid_search(
-            "test query", "test_collection", top_k=5, filters=filters
-        )
+        search_service.hybrid_search("test query", "test_collection", top_k=5, filters=filters)
 
         assert mock_qdrant_client.query_points.called
 
-    def test_hybrid_search_invalid_filter_key(
-        self, search_service, mock_vector_service
-    ):
+    def test_hybrid_search_invalid_filter_key(self, search_service, mock_vector_service):
         """Test that invalid filter keys raise ValueError."""
         filters = {"invalid_key": "some_value"}
         with pytest.raises(ValueError, match="Invalid filter key: 'invalid_key'"):
-            search_service.hybrid_search(
-                "test query", "test_collection", top_k=5, filters=filters
-            )
+            search_service.hybrid_search("test query", "test_collection", top_k=5, filters=filters)
 
     def test_hybrid_search_empty_results(self, search_service, mock_vector_service):
         """Test handling of empty results."""
@@ -362,9 +335,7 @@ class TestSearchService:
         # Mock query_points to return the scored point
         # Note: FusionQuery construction will likely fail in test env, causing fallback to RRF
         # This test verifies that ScoredPoint -> SearchResult mapping works correctly
-        mock_qdrant_client.query_points.return_value = create_mock_query_response(
-            [scored_point]
-        )
+        mock_qdrant_client.query_points.return_value = create_mock_query_response([scored_point])
 
         results = search_service.hybrid_search("test query", "test_collection", top_k=5)
 
@@ -421,9 +392,7 @@ class TestSearchService:
                 create_mock_query_response([scored_point]),  # sparse query
             ]
 
-            results = search_service.hybrid_search(
-                "test query", "test_collection", top_k=5
-            )
+            results = search_service.hybrid_search("test query", "test_collection", top_k=5)
 
             assert len(results) == 1
             result = results[0]
@@ -480,9 +449,7 @@ class TestRRFHelper:
             ScoredPoint(id=point2_id, version=1, score=0.75, payload={}),
         ]
 
-        fused = search_service.reciprocal_rank_fusion(
-            dense_results, sparse_results, top_k=2
-        )
+        fused = search_service.reciprocal_rank_fusion(dense_results, sparse_results, top_k=2)
 
         # point1: rank 1 in dense (1/(60+1)) + rank 1 in sparse (1/(60+1)) = 2/61
         # point2: rank 2 in dense (1/(60+2)) + rank 2 in sparse (1/(60+2)) = 2/62
@@ -505,12 +472,8 @@ class TestRRFHelper:
             ScoredPoint(id=point2_id, version=1, score=0.75, payload={}),
         ]
 
-        fused1 = search_service.reciprocal_rank_fusion(
-            dense_results, sparse_results, top_k=2
-        )
-        fused2 = search_service.reciprocal_rank_fusion(
-            dense_results, sparse_results, top_k=2
-        )
+        fused1 = search_service.reciprocal_rank_fusion(dense_results, sparse_results, top_k=2)
+        fused2 = search_service.reciprocal_rank_fusion(dense_results, sparse_results, top_k=2)
 
         # Same inputs should produce same outputs
         assert len(fused1) == len(fused2)
@@ -530,9 +493,7 @@ class TestRRFHelper:
         dense_results = [ScoredPoint(id=point_id, version=1, score=0.9, payload={})]
         sparse_results = [ScoredPoint(id=point_id, version=1, score=0.85, payload={})]
 
-        fused = search_service.reciprocal_rank_fusion(
-            dense_results, sparse_results, top_k=5
-        )
+        fused = search_service.reciprocal_rank_fusion(dense_results, sparse_results, top_k=5)
 
         assert len(fused) == 1
         assert fused[0].id == point_id
@@ -543,4 +504,3 @@ class TestRRFHelper:
 
 class TestUtils:
     """Tests for utility functions."""
-

@@ -62,4 +62,3 @@ def get_llm_client() -> OllamaClient:
         logger.info("Initializing OllamaClient (singleton)")
         _llm_client = OllamaClient()
     return _llm_client
-

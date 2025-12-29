@@ -14,7 +14,7 @@ from qdrant_client.models import (
 
 from src.config import QDRANT_HOST, QDRANT_PORT
 from src.ingest import VectorService
-from src.models import SearchQuery, SearchResult
+from src.models import SearchResult
 from src.utils.qdrant import (
     DENSE_VECTOR_NAME,
     SPARSE_VECTOR_NAME,
@@ -147,15 +147,11 @@ class SearchService:
             filter_conditions = []
             if "library" in filters and filters["library"] is not None:
                 filter_conditions.append(
-                    FieldCondition(
-                        key="library", match=MatchValue(value=filters["library"])
-                    )
+                    FieldCondition(key="library", match=MatchValue(value=filters["library"]))
                 )
             if "version" in filters and filters["version"] is not None:
                 filter_conditions.append(
-                    FieldCondition(
-                        key="version", match=MatchValue(value=filters["version"])
-                    )
+                    FieldCondition(key="version", match=MatchValue(value=filters["version"]))
                 )
             if filter_conditions:
                 qdrant_filter = Filter(must=filter_conditions)
@@ -197,9 +193,7 @@ class SearchService:
             logger.info(f"Used Qdrant prefetch + fusion API, returned {len(results)} results")
         except (AttributeError, TypeError, ValueError) as e:
             # Fallback: fusion API not available, use Python RRF
-            logger.info(
-                f"Fusion API not available ({e}), falling back to Python RRF merge"
-            )
+            logger.info(f"Fusion API not available ({e}), falling back to Python RRF merge")
 
             # Calculate prefetch_k for fallback
             prefetch_k = max(self.min_prefetch_limit, top_k * self.prefetch_multiplier)
@@ -225,9 +219,7 @@ class SearchService:
             ).points
 
             # Merge using Python RRF
-            results = self.reciprocal_rank_fusion(
-                dense_results, sparse_results, top_k
-            )
+            results = self.reciprocal_rank_fusion(dense_results, sparse_results, top_k)
 
             logger.info(
                 f"Used Python RRF fallback, returned {len(results)} results from "
@@ -286,9 +278,7 @@ class SearchService:
         return search_results
 
 
-def hybrid_search(
-    query: str, k: int = 25, filters: Optional[dict] = None
-) -> list[SearchResult]:
+def hybrid_search(query: str, k: int = 25, filters: Optional[dict] = None) -> list[SearchResult]:
     """
     Perform hybrid search (sparse + dense) in Qdrant.
 

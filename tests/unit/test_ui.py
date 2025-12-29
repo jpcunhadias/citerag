@@ -72,9 +72,7 @@ class TestGetCollections:
         # The cache decorator is patched at class level to be a no-op
         # Create a completely fresh mock that will raise an error
         error_mock = MagicMock()
-        error_mock.get_collections = MagicMock(
-            side_effect=APIClientError("Connection failed")
-        )
+        error_mock.get_collections = MagicMock(side_effect=APIClientError("Connection failed"))
 
         # Verify the mock will actually raise the error
         with pytest.raises(APIClientError):
@@ -86,9 +84,9 @@ class TestGetCollections:
 
         # Now test the actual function - should execute fresh due to cache patch
         collections = get_collections(error_mock)
-        assert collections == FALLBACK_COLLECTIONS, (
-            f"Expected {FALLBACK_COLLECTIONS}, got {collections}"
-        )
+        assert (
+            collections == FALLBACK_COLLECTIONS
+        ), f"Expected {FALLBACK_COLLECTIONS}, got {collections}"
         mock_logger.error.assert_called_once()
 
 

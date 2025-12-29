@@ -22,16 +22,16 @@ class RerankerService:
         """Initialize RerankerService with FlagReranker model."""
         device = get_device()
         device_str = device.type  # Returns "cuda" or "cpu"
-        logger.info(f"Initializing FlagReranker with model={RERANKER_MODEL_NAME}, device={device_str}")
+        logger.info(
+            f"Initializing FlagReranker with model={RERANKER_MODEL_NAME}, device={device_str}"
+        )
         self.reranker = FlagReranker(RERANKER_MODEL_NAME, device=device_str)
         # Ensure model is in eval mode
         if hasattr(self.reranker, "model"):
             self.reranker.model.eval()
         logger.info("Reranker initialized and set to eval mode")
 
-    def rerank(
-        self, query: str, results: list["SearchResult"], top_n: int
-    ) -> list["SearchResult"]:
+    def rerank(self, query: str, results: list["SearchResult"], top_n: int) -> list["SearchResult"]:
         """
         Rerank search results using cross-encoder reranker.
 
@@ -70,4 +70,3 @@ class RerankerService:
 
         # Return top_n results (or all if top_n > len(results))
         return sorted_results[:top_n]
-
