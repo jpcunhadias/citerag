@@ -150,11 +150,34 @@ The system is composed of two main pipelines:
     ollama pull llama3:8b-instruct
     ```
 
-4.  **Start the Qdrant vector database:**
+4.  **Start services with Docker Compose:**
+
+    **Option A: Full stack (recommended for production)**
     ```bash
     docker-compose up -d
     ```
-    This will start a Qdrant container and persist data in a local Docker volume named `qdrant_storage`.
+    This starts Qdrant, FastAPI backend, and Streamlit UI. Access:
+    - Streamlit UI: http://localhost:8501
+    - FastAPI API: http://localhost:8000
+    - API Docs: http://localhost:8000/docs
+
+    **Option B: Qdrant only (for local development)**
+    ```bash
+    docker-compose up -d qdrant
+    ```
+    Then run FastAPI and Streamlit locally (see Usage section below).
+
+    **Important Notes:**
+    - Models are kept on the host filesystem (`~/.cache`) and mounted into containers to avoid re-downloading
+    - **Ollama Configuration**: Ollama must be configured to listen on all interfaces (not just localhost) for containers to access it:
+      ```bash
+      # Set OLLAMA_HOST environment variable before starting Ollama
+      export OLLAMA_HOST=0.0.0.0:11434
+      ollama serve
+      ```
+      Or add to your shell profile: `echo 'export OLLAMA_HOST=0.0.0.0:11434' >> ~/.bashrc`
+    - The `HOME` environment variable must be set for model cache mounting to work
+    - To rebuild containers after code changes: `docker-compose build && docker-compose up -d`
 
 ## Usage
 
@@ -186,12 +209,27 @@ Before you can search, you must index your documentation.
 
 The easiest way to interact with your documents is through the Streamlit web application.
 
-1.  **Start the app:**
+**Using Docker Compose (recommended):**
+```bash
+docker-compose up -d
+```
+Then open http://localhost:8501 in your browser.
+
+**Using local development:**
+1.  **Start the FastAPI backend:**
+    ```bash
+    uvicorn api.main:app --reload
+    ```
+    This will start the API server at `http://localhost:8000`. The `--reload` flag enables hot-reload during development.
+
+2.  **Start the Streamlit UI** (in a separate terminal):
     ```bash
     streamlit run ui.py
     ```
-2.  **Open your browser** to the displayed URL (usually `http://localhost:8501`).
-3.  **Select your collection** from the sidebar and start asking questions.
+3.  **Open your browser** to the displayed URL (usually `http://localhost:8501`).
+4.  **Select your collection** from the sidebar and start asking questions.
+
+**Note:** The Streamlit UI requires the FastAPI backend to be running. The CLI (`app.py ask`) works independently and does not require the backend.
 
 ### 3. Asking Questions (CLI)
 
@@ -207,3 +245,20 @@ python3 app.py ask "how do i merge two dataframes?" --collection pandas_v2
 ```
 
 This will output a detailed answer along with the sources used to generate it.
+
+## Testing
+
+Run the automated test script to validate your setup:
+
+```bash
+python3 scripts/test_docker_setup.py [collection_name]
+```
+
+This will test:
+- API health endpoint
+- Collections endpoint
+- Search endpoint (if collection provided)
+- Ask/RAG endpoint (if collection provided)
+- Streamlit UI accessibility
+
+See `scripts/test_docker_setup.py` for more details.
