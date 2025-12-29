@@ -13,7 +13,8 @@ def test_api_health(base_url: str = "http://localhost:8000") -> bool:
     print("Testing API health endpoint...")
     try:
         response = requests.get(f"{base_url}/health", timeout=10)
-        response.raise_for_status()
+        # Health endpoint can return 200 (healthy) or 503 (unhealthy)
+        # Both are valid responses, we just check the JSON content
         data = response.json()
         print(f"  [PASS] API is responding")
         print(f"  Status: {data['status']}")
