@@ -30,11 +30,11 @@ services:
       - "8000:8000"  # FastAPI
     volumes:
       - .:/app
-      # Mount model cache from host (read-only) - adjust paths if needed
-      # Models are kept on host to avoid re-downloading in containers
-      - ${HOME}/.cache:/root/.cache:ro
-      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:ro
-      - ${HOME}/.cache/torch:/root/.cache/torch:ro
+      # Mount model cache from host (read-write) - adjust paths if needed
+      # Models are kept on host to avoid re-downloading in containers, but may be updated at runtime
+      - ${HOME}/.cache:/root/.cache:rw
+      - ${HOME}/.cache/huggingface:/root/.cache/huggingface:rw
+      - ${HOME}/.cache/torch:/root/.cache/torch:rw
     environment:
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
