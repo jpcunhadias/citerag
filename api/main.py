@@ -25,6 +25,11 @@ app = FastAPI(
 # Production: Set to specific origins, e.g., "https://app.example.com,https://admin.example.com"
 allowed_origins = [origin.strip() for origin in config.CORS_ORIGINS.split(",") if origin.strip()]
 
+# Ensure at least one origin is configured
+if not allowed_origins:
+    logger.warning("No CORS origins configured. Using default: http://localhost:8501")
+    allowed_origins = ["http://localhost:8501"]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,

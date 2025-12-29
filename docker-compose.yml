@@ -39,6 +39,7 @@ services:
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # CORS origins: internal Docker network + localhost for browser access
       - CORS_ORIGINS=http://streamlit:8501,http://localhost:8501
       - PYTHONUNBUFFERED=1
     depends_on:
