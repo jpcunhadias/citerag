@@ -1,49 +1,136 @@
-# rag-ds-docsearcher
+# RAG DS DocSearcher
 
 A self-hosted, offline-first documentation search engine powered by a Retrieval-Augmented Generation (RAG) pipeline. This system indexes local technical documentation and provides a simple web interface for asking questions and finding relevant information.
 
+## High-Level Architecture
+
+```mermaid
+graph TD
+    %% --- User Layer ---
+    subgraph Interface ["User Interface & Entrypoints"]
+        User([User])
+        Streamlit["Streamlit UI (src/ui.py)"]
+        CLI["CLI Command (app.py ask)"]
+        Cache["St. Cache Resource (Holds Heavy Services)"]
+    end
+
+    %% --- Orchestration Layer ---
+    subgraph Brain ["The Brain (Orchestrator)"]
+        RAG["RAGService (src/rag.py)"]
+        ContextBuilder["Context Builder (Budgeting & Citations)"]
+    end
+
+    %% --- Core Services Layer ---
+    subgraph Services ["Core Services"]
+        SearchSvc["SearchService (src/search.py)"]
+        RerankSvc["RerankerService (src/rerank.py)"]
+        LLMSvc["OllamaClient (src/llm.py)"]
+        VectorSvc["VectorService (src/ingest.py)"]
+    end
+
+    %% --- Infrastructure Layer ---
+    subgraph Infra ["Infrastructure & Hardware"]
+        Qdrant["Qdrant DB (Docker:6333)"]
+        OllamaProc["Ollama Process (HTTP:11434)"]
+        FileSystem["Local Docs (.md / .txt)"]
+
+        subgraph Hardware ["RTX 2080 Ti (11GB VRAM)"]
+            GPU_Embed["BGE-M3 (Embeddings)"]
+            GPU_Rerank["BGE-Reranker-v2-m3 (Cross-Encoder)"]
+            GPU_LLM["Llama-3-8B (Inference)"]
+        end
+    end
+
+    %% --- Connections: Application Flow ---
+    User --> Streamlit
+    User --> CLI
+
+    Streamlit --> Cache
+    Cache -->|Init| SearchSvc
+    Cache -->|Init| RerankSvc
+    Cache -->|Init| LLMSvc
+
+    Streamlit -->|"1: Ask query"| RAG
+    CLI -->|"1: Ask query"| RAG
+
+    %% --- Connections: RAG Pipeline ---
+    RAG -->|"2: Get candidates"| SearchSvc
+    SearchSvc -->|"Embed query"| VectorSvc
+    VectorSvc -.->|"Inference"| GPU_Embed
+    SearchSvc <-->|"Hybrid search"| Qdrant
+
+    RAG -->|"3: Rescore candidates"| RerankSvc
+    RerankSvc -.->|"Inference"| GPU_Rerank
+
+    RAG -->|"4: Format & add citations"| ContextBuilder
+    ContextBuilder -->|"Prompt with context"| RAG
+
+    RAG -->|"5: Generate answer"| LLMSvc
+    LLMSvc <-->|"POST /api/generate"| OllamaProc
+    OllamaProc -.->|"Inference"| GPU_LLM
+
+    %% --- Connections: Ingestion (Background) ---
+    FileSystem -.->|"Load & split"| VectorSvc
+    VectorSvc -.->|"Upsert vectors"| Qdrant
+
+    %% --- Styling ---
+    classDef ui fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef logic fill:#fff3e0,stroke:#ff6f00,stroke-width:2px;
+    classDef service fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef infra fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
+    classDef hardware fill:#424242,stroke:#000,stroke-width:2px,color:#fff;
+
+    class Streamlit,CLI,Cache ui;
+    class RAG,ContextBuilder logic;
+    class SearchSvc,RerankSvc,LLMSvc,VectorSvc service;
+    class Qdrant,OllamaProc,FileSystem infra;
+    class GPU_Embed,GPU_Rerank,GPU_LLM hardware;
+```
+
 ## Features
 
-*   **Offline-First:** Runs entirely on local hardware without needing external services.
-*   **Hybrid Search:** Utilizes both dense and sparse vectors (`BGE-M3`) for state-of-the-art retrieval that understands both semantic meaning and keyword importance.
-*   **Re-ranking:** Employs a re-ranker model (`BGE-Reranker-v2-M3`) to improve the relevance of search results before they are passed to the language model.
-*   **Question Answering:** Uses a local LLM (`Llama-3-8B` via Ollama) to generate direct answers based on the retrieved documentation.
-*   **Simple UI:** A clean Streamlit web application for querying the document collection.
-*   **CLI for Ingestion:** A command-line interface to easily ingest new documentation into the search index.
+- **Offline-First:** Runs entirely on local hardware. No data leaves your machine.
+- **State-of-the-Art RAG:** Implements a sophisticated RAG pipeline using cutting-edge models.
+- **Hybrid Search:** Utilizes `BGE-M3` for dense and sparse embeddings, ensuring both semantic and keyword understanding.
+- **Cross-Encoder Re-ranking:** Employs `BGE-Reranker-v2-M3` to refine search results for maximum relevance.
+- **LLM Synthesis:** Uses `Llama-3-8B` via Ollama to generate accurate, context-aware answers.
+- **Dual Interfaces:** Interact via a clean Streamlit web UI or a powerful command-line interface.
+- **Citation-Aware:** All generated answers include citations, allowing you to verify the source of the information.
 
 ## Tech Stack
 
-*   **Vector DB:** Qdrant (running in Docker)
-*   **Application Framework:** Streamlit
-*   **Embedding Model:** `BAAI/bge-m3` (via `FlagEmbedding`)
-*   **Reranker Model:** `BAAI/bge-reranker-v2-m3`
-*   **LLM:** Ollama with `Llama-3-8B-Instruct`
+- **Vector DB:** Qdrant (running in Docker)
+- **Application Framework:** Streamlit
+- **Embedding Model:** `BAAI/bge-m3` (via `FlagEmbedding`)
+- **Reranker Model:** `BAAI/bge-reranker-v2-m3`
+- **LLM:** Ollama with `Llama-3-8B-Instruct`
+- **Core Libraries:** `langchain`, `sentence-transformers`, `torch`, `qdrant-client`
 
 ## Architecture
 
 The system is composed of two main pipelines:
 
-1.  **Ingestion Pipeline:** A multi-step process that prepares and indexes documents.
+1.  **Ingestion Pipeline:**
     `CLI -> Loader -> Cleaner -> HeaderSplitter -> RecursiveSplitter -> VectorService -> Qdrant`
-    This pipeline loads `.md` and `.txt` files, cleans the text, splits it into deterministic chunks, generates dense and sparse embeddings, and finally indexes them into the Qdrant vector database.
+    This pipeline loads `.md` and `.txt` files, cleans the text, splits it into deterministic chunks, generates dense and sparse embeddings, and indexes them into the Qdrant vector database.
 
-2.  **Search Pipeline:** The retrieval and generation process that answers user queries.
+2.  **Search Pipeline:**
     `Query -> Hybrid Search -> Re-ranking -> LLM Synthesis -> Answer`
-    A user query is used to perform a hybrid search in Qdrant. The results are re-ranked for relevance, and the top results are used as context for the LLM to generate a final answer.
+    A user query triggers a hybrid search in Qdrant. The results are re-ranked for relevance, and the top results are used as context for the LLM to generate a final, cited answer.
 
 ## Getting Started
 
 ### Prerequisites
 
-*   Python 3.9+
-*   Docker and Docker Compose
-*   [Ollama](https://ollama.com/) installed and running.
+- Python 3.9+
+- Docker and Docker Compose
+- [Ollama](https://ollama.com/) installed and running.
 
 ### Installation & Setup
 
 1.  **Clone the repository:**
     ```bash
-    git clone <your-repository-url>
+    git clone https://github.com/run-llama/rag-ds-docsearcher.git
     cd rag-ds-docsearcher
     ```
 
@@ -65,38 +152,52 @@ The system is composed of two main pipelines:
 
 ## Usage
 
-### 1. Ingesting Documents
+This project provides two interfaces: a web app and a CLI.
 
-Place the documentation files you want to index into a directory (e.g., `data/raw/my-docs`). Then, run the ingestion command.
+### 1. Ingesting Documents (CLI)
+
+Before you can search, you must index your documentation.
+
+1.  Place your `.md` or `.txt` files in a directory (e.g., `data/raw/my-docs`).
+2.  Run the ingestion command:
+    ```bash
+    python3 app.py ingest --input <path_to_your_docs> --collection <your_collection_name>
+    ```
+    - `--input`: Path to the directory containing your documents.
+    - `--collection`: A unique name for the Qdrant collection.
+    - `--library`, `--version`: (Optional) Metadata tags.
+
+    **Example:**
+    ```bash
+    # Ingest documentation for the pandas library
+    python3 app.py ingest \
+      --input data/raw/pandas-docs \
+      --collection pandas_v2 \
+      --library pandas
+    ```
+
+### 2. Asking Questions (Web UI)
+
+The easiest way to interact with your documents is through the Streamlit web application.
+
+1.  **Start the app:**
+    ```bash
+    streamlit run ui.py
+    ```
+2.  **Open your browser** to the displayed URL (usually `http://localhost:8501`).
+3.  **Select your collection** from the sidebar and start asking questions.
+
+### 3. Asking Questions (CLI)
+
+For command-line enthusiasts, the `ask` command provides a direct way to get answers.
 
 ```bash
-python3 app.py ingest --input <path_to_your_docs> --collection <your_collection_name>
+python3 app.py ask "<your_question>" --collection <your_collection_name>
 ```
-
-**Arguments:**
-*   `--input`: (Required) Path to the directory containing your `.md` or `.txt` documentation files.
-*   `--collection`: (Required) A unique name for the Qdrant collection where the documents will be stored.
-*   `--library` / `--version`: (Optional) Metadata tags to associate with the ingested documents.
 
 **Example:**
 ```bash
-python3 app.py ingest --input data/raw/pandas-docs --collection pandas_v2 --library pandas
+python3 app.py ask "how do i merge two dataframes?" --collection pandas_v2
 ```
 
-### 2. Verifying Ingestion (Optional)
-
-You can use the provided verification script to inspect the contents of your Qdrant collection.
-
-```bash
-python3 scripts/verify_qdrant.py <your_collection_name>
-```
-
-### 3. Running the Search Application
-
-Once your documents have been ingested, you can start the Streamlit web application to begin searching.
-
-```bash
-streamlit run app.py
-```
-
-This will open the search interface in your web browser.
+This will output a detailed answer along with the sources used to generate it.
