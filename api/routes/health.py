@@ -23,7 +23,7 @@ def check_qdrant() -> str:
     """
     try:
         client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
-        collections = client.get_collections()
+        client.get_collections()
         return "healthy"
     except Exception as e:
         logger.error(f"Qdrant health check failed: {e}")
