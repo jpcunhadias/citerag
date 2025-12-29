@@ -179,6 +179,33 @@ The system is composed of two main pipelines:
     - The `HOME` environment variable must be set for model cache mounting to work
     - To rebuild containers after code changes: `docker-compose build && docker-compose up -d`
 
+## Production Configuration
+
+### CORS Security
+
+The FastAPI backend uses CORS (Cross-Origin Resource Sharing) middleware to control which origins can make requests to the API. This is critical for production security.
+
+**Default Configuration (Development):**
+```bash
+CORS_ORIGINS=http://localhost:8501
+```
+
+**Production Configuration:**
+Set the `CORS_ORIGINS` environment variable to your specific frontend URL(s):
+```bash
+CORS_ORIGINS=https://your-app.example.com,https://admin.example.com
+```
+
+**To configure for production:**
+1. Edit `docker-compose.yml` and update the `CORS_ORIGINS` environment variable under the `api` service
+2. Or set the environment variable when starting the API:
+   ```bash
+   export CORS_ORIGINS=https://your-app.example.com
+   uvicorn api.main:app --host 0.0.0.0 --port 8000
+   ```
+
+**Security Warning:** Never use wildcard origins (`*`) in production as this allows any website to make requests to your API, creating a significant security vulnerability.
+
 ## Usage
 
 This project provides two interfaces: a web app and a CLI.
