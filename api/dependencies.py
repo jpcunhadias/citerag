@@ -2,6 +2,7 @@
 
 import logging
 from functools import lru_cache
+from typing import Optional
 
 from qdrant_client import QdrantClient
 
@@ -15,9 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 # Global service instances (singleton pattern)
-_search_service: SearchService | None = None
-_reranker_service: RerankerService | None = None
-_llm_client: OllamaClient | None = None
+_search_service: Optional[SearchService] = None
+_reranker_service: Optional[RerankerService] = None
+_llm_client: Optional[OllamaClient] = None
 
 
 def get_search_service() -> SearchService:
