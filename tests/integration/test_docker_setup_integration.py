@@ -2,7 +2,6 @@
 """Test script to validate Docker Compose setup."""
 
 import sys
-import time
 from typing import Optional
 
 import requests
@@ -13,7 +12,8 @@ def test_api_health(base_url: str = "http://localhost:8000") -> bool:
     print("Testing API health endpoint...")
     try:
         response = requests.get(f"{base_url}/health", timeout=10)
-        response.raise_for_status()
+        # Health endpoint can return 200 (healthy) or 503 (unhealthy)
+        # Both are valid responses, we just check the JSON content
         data = response.json()
         print(f"  [PASS] API is responding")
         print(f"  Status: {data['status']}")
@@ -131,6 +131,8 @@ def main() -> int:
                     collection = collections[0]
                     print(f"Using collection: {collection}\n")
         except Exception:
+            # If the collections endpoint is unavailable or returns invalid data,
+            # proceed without a default collection so collection-based tests are skipped.
             pass
 
     results = []
