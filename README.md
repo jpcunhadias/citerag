@@ -157,9 +157,9 @@ The system is composed of two main pipelines:
     docker-compose up -d
     ```
     This starts Qdrant, FastAPI backend, and Streamlit UI. Access:
-    - Streamlit UI: http://localhost:8501
-    - FastAPI API: http://localhost:8000
-    - API Docs: http://localhost:8000/docs
+    - Streamlit UI: http://localhost:8501 (or http://<your-ip>:8501 from other devices on your network)
+    - FastAPI API: http://localhost:8000 (or http://<your-ip>:8000 from other devices on your network)
+    - API Docs: http://localhost:8000/docs (or http://<your-ip>:8000/docs from other devices on your network)
 
     **Option B: Qdrant only (for local development)**
     ```bash

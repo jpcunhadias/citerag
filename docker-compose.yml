@@ -26,9 +26,8 @@ services:
       context: .
       dockerfile: Dockerfile.api
     container_name: rag-api
-    network_mode: host
-    # Using host network mode to access Ollama and Qdrant on localhost
-    # This is necessary on Linux where host.docker.internal doesn't work reliably
+    ports:
+      - "8000:8000"  # FastAPI
     volumes:
       - .:/app
       # Mount model cache from host (read-only) - adjust paths if needed
@@ -37,43 +36,49 @@ services:
       - ${HOME}/.cache/huggingface:/root/.cache/huggingface:ro
       - ${HOME}/.cache/torch:/root/.cache/torch:ro
     environment:
-      - QDRANT_HOST=localhost
+      - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
-      - OLLAMA_BASE_URL=http://localhost:11434
-      - API_BASE_URL=http://localhost:8000
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - PYTHONUNBUFFERED=1
     depends_on:
       - qdrant
     restart: unless-stopped
     healthcheck:
+      # Health check uses localhost since it runs inside the container
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 -O- http://localhost:8000/health > /dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
+    networks:
+      - rag-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   streamlit:
     build:
       context: .
       dockerfile: Dockerfile.streamlit
     container_name: rag-streamlit
-    network_mode: host
-    # Using host network mode to access API on localhost:8000
-    # This matches the API service which also uses host network mode
+    ports:
+      - "8501:8501"  # Streamlit
     volumes:
       - .:/app
     environment:
-      - API_BASE_URL=http://localhost:8000
+      - API_BASE_URL=http://api:8000
       - PYTHONUNBUFFERED=1
     depends_on:
       - api
     restart: unless-stopped
     healthcheck:
+      # Health check uses localhost since it runs inside the container
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8501/_stcore/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 20s
+    networks:
+      - rag-network
 
 volumes:
   qdrant_storage:
