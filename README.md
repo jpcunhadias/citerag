@@ -281,7 +281,7 @@ This project uses automated code quality checks to maintain consistent code styl
 
 #### Pre-commit Hooks
 
-Pre-commit hooks run automatically before each commit to check formatting and linting. To set up:
+Pre-commit hooks run automatically before each commit to check formatting and linting. **All developers must set up pre-commit hooks.**
 
 1. **Install pre-commit:**
    ```bash
@@ -304,7 +304,7 @@ Now, when you commit, the hooks will:
 - Check for trailing whitespace, large files, and other common issues
 - Block the commit if unfixable issues are found
 
-**Note:** You can bypass hooks with `git commit --no-verify`, but CI will still catch issues.
+**Note:** You can bypass hooks with `git commit --no-verify`, but this is discouraged. All code should pass formatting and linting checks before committing.
 
 #### Manual Code Quality Checks
 
@@ -324,18 +324,22 @@ ruff check src tests api scripts
 ruff check --fix src tests api scripts
 ```
 
-#### CI Checks
+#### Running Tests Locally
 
-GitHub Actions CI runs automatically on:
-- Every push to `main`/`master`
-- Every pull request
+Before pushing code, run tests locally:
 
-CI checks include:
-- Formatting verification (`black --check`)
-- Linting verification (`ruff check`)
-- Unit tests (`pytest tests/unit/`)
+```bash
+# Run fast unit tests (no external services needed)
+pytest tests/unit/ -v
 
-All checks must pass before merging PRs.
+# Run integration tests (requires Qdrant, Ollama, FastAPI)
+pytest tests/integration/ -v
+
+# Run all tests
+pytest tests/ -v
+```
+
+**Important:** Ensure all tests pass locally before creating a pull request.
 
 ## Testing
 
