@@ -5,7 +5,6 @@ import sys
 
 import streamlit as st
 
-from src.config import DEFAULT_DEVICE
 from src.search import generate_answer, retrieve_context
 
 # Configure logging
@@ -78,4 +77,3 @@ if st.button("Search", type="primary") and query:
                     st.markdown(f"{i}. {result.header or 'N/A'}")
                     if result.url:
                         st.markdown(f"   - {result.url}")
-
