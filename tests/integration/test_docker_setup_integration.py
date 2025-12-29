@@ -2,7 +2,6 @@
 """Test script to validate Docker Compose setup."""
 
 import sys
-import time
 from typing import Optional
 
 import requests
