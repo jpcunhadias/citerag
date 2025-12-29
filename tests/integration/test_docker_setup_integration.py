@@ -130,6 +130,8 @@ def main() -> int:
                     collection = collections[0]
                     print(f"Using collection: {collection}\n")
         except Exception:
+            # If the collections endpoint is unavailable or returns invalid data,
+            # proceed without a default collection so collection-based tests are skipped.
             pass
 
     results = []
