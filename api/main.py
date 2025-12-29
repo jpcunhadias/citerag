@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import collections, health, rag
+from src import config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -19,9 +20,21 @@ app = FastAPI(
 )
 
 # Configure CORS for Streamlit client
+# CORS origins are configured via CORS_ORIGINS environment variable
+# Default: http://localhost:8501 (for local Streamlit development)
+# Production: Set to specific origins, e.g., "https://app.example.com,https://admin.example.com"
+allowed_origins = [origin.strip() for origin in config.CORS_ORIGINS.split(",") if origin.strip()]
+
+# Ensure at least one origin is configured
+if not allowed_origins:
+    logger.warning(
+        f"No CORS origins configured. Using default: {config.DEFAULT_CORS_ORIGIN}"
+    )
+    allowed_origins = [config.DEFAULT_CORS_ORIGIN]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify exact origins
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
