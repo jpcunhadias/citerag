@@ -111,7 +111,7 @@ def main():
                 return 1
 
         # Update TEST_COLLECTION for the test functions
-        import tests.test_e2e_api as test_module
+        import tests.integration.test_e2e_api as test_module
         test_module.TEST_COLLECTION = collection_to_use
     except APIClientError as e:
         print(f"[FAIL] ERROR: Could not connect to API to get collections: {e}")
