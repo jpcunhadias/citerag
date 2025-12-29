@@ -4,41 +4,20 @@ import logging
 
 import pandas as pd
 import streamlit as st
-from qdrant_client import QdrantClient
 
-from src.config import QDRANT_HOST, QDRANT_PORT, RAG_REFUSAL_MESSAGE
-from src.ingest import VectorService
-from src.llm import OllamaClient, OllamaConnectionError
+from src.api_client import APIClient, APIClientError
+from src.config import API_BASE_URL, RAG_REFUSAL_MESSAGE
 from src.models import Citation
-from src.rag import RAGService
-from src.rerank import RerankerService
-from src.search import SearchService
 
 logger = logging.getLogger(__name__)
-
-
-@st.cache_resource
-def get_services() -> tuple[SearchService, RerankerService, OllamaClient]:
-    """
-    Initialize and cache heavy singleton services.
-
-    Returns:
-        Tuple of (SearchService, RerankerService, OllamaClient)
-    """
-    logger.info("Initializing services (cached)")
-    qdrant_client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
-    vector_service = VectorService()
-    search_service = SearchService(qdrant_client, vector_service)
-    reranker_service = RerankerService()
-    llm_client = OllamaClient()
-
-    return search_service, reranker_service, llm_client
 
 
 def init_state() -> None:
     """Initialize session state variables."""
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
+    if "api_client" not in st.session_state:
+        st.session_state["api_client"] = APIClient(base_url=API_BASE_URL)
 
 
 def build_citations_data(citations: list[Citation]) -> list[dict[str, str]]:
@@ -70,13 +49,20 @@ def build_citations_data(citations: list[Citation]) -> list[dict[str, str]]:
 
 
 @st.cache_data(ttl=60)  # Cache for 60 seconds
-def get_collections() -> list[str]:
-    """Fetch available collections from Qdrant."""
+def get_collections(api_client: APIClient) -> list[str]:
+    """
+    Fetch available collections from API.
+
+    Args:
+        api_client: APIClient instance
+
+    Returns:
+        List of collection names
+    """
     try:
-        qdrant_client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
-        collections = qdrant_client.get_collections().collections
-        return [col.name for col in collections]
-    except Exception as e:
+        collections = api_client.get_collections()
+        return collections
+    except APIClientError as e:
         logger.error(f"Error fetching collections: {e}")
         return ["pandas_docs"]  # Fallback
 
@@ -93,12 +79,15 @@ def render() -> None:
     # Initialize session state
     init_state()
 
+    # Get API client from session state
+    api_client = st.session_state["api_client"]
+
     # Sidebar - Settings
     with st.sidebar:
         st.title("⚙️ Settings")
 
         # Get available collections
-        available_collections = get_collections()
+        available_collections = get_collections(api_client)
 
         if not available_collections:
             st.warning("No collections found. Please ingest documents first.")
@@ -172,19 +161,9 @@ def render() -> None:
 
         # Process query
         try:
-            # Retrieve cached services
-            search_service, reranker_service, llm_client = get_services()
-
-            # Create RAG service (lightweight, not cached)
-            rag_service = RAGService(
-                search_service=search_service,
-                reranker_service=reranker_service,
-                llm_client=llm_client,
-            )
-
-            # Show spinner and call RAG
+            # Show spinner and call API
             with st.spinner("Thinking..."):
-                response = rag_service.ask(
+                response = api_client.ask(
                     query=query,
                     collection=collection_name,
                     top_k=top_k,
@@ -223,15 +202,26 @@ def render() -> None:
                     with st.expander("🔍 Debug Context"):
                         st.code(response.context_used, language=None)
 
-        except OllamaConnectionError as e:
+        except APIClientError as e:
             # Extract user-friendly message
             error_str = str(e)
-            if "Failed to connect" in error_str:
-                user_msg = "❌ **Connection Error**\n\nUnable to connect to Ollama. Please ensure Ollama is running and accessible at http://localhost:11434"
+            if "Failed to connect" in error_str or "connect to API" in error_str:
+                user_msg = (
+                    "❌ **Connection Error**\n\n"
+                    f"Unable to connect to API backend at {API_BASE_URL}. "
+                    "Please ensure the FastAPI server is running. "
+                    "Start it with: `uvicorn api.main:app --reload`"
+                )
+            elif "Ollama service unavailable" in error_str:
+                user_msg = (
+                    "❌ **Service Error**\n\n"
+                    "Ollama service is unavailable. Please ensure Ollama is running "
+                    "and accessible at http://localhost:11434"
+                )
             else:
-                user_msg = f"❌ **Error**: {error_str}"
+                user_msg = f"❌ **API Error**: {error_str[:200]}..." if len(error_str) > 200 else f"❌ **API Error**: {error_str}"
 
-            logger.error(f"Ollama connection error: {error_str}")
+            logger.error(f"API client error: {error_str}")
 
             with st.chat_message("assistant"):
                 st.markdown(user_msg)
@@ -266,4 +256,3 @@ def render() -> None:
                 st.session_state.messages.append(
                     {"role": "assistant", "content": user_msg}
                 )
-
