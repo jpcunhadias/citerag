@@ -119,6 +119,27 @@ Interactive API documentation is available at:
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
+## Configuration
+
+### CORS (Cross-Origin Resource Sharing)
+
+The API uses CORS middleware to control which origins can make requests to it. This is configured via the `CORS_ORIGINS` environment variable.
+
+**Default (Development):**
+```bash
+CORS_ORIGINS=http://localhost:8501
+```
+
+**Production:**
+Set to specific origins (comma-separated list):
+```bash
+CORS_ORIGINS=https://app.example.com,https://admin.example.com
+```
+
+**Important:** Never use wildcard origins (`*`) in production as this allows any website to make requests to your API, which is a security risk.
+
+To configure CORS origins when running with Docker Compose, edit the `docker-compose.yml` file and update the `CORS_ORIGINS` environment variable under the `api` service.
+
 ## Service Initialization
 
 Services (SearchService, RerankerService, OllamaClient) are initialized lazily on first request and cached as singletons for subsequent requests. This ensures efficient resource usage while maintaining fast response times.

@@ -20,6 +20,11 @@ OLLAMA_MODEL_NAME: str = os.getenv("OLLAMA_MODEL_NAME", "llama3")
 # API Configuration (can be overridden by environment variables)
 API_BASE_URL: str = os.getenv("API_BASE_URL", "http://localhost:8000")
 
+# CORS Configuration (can be overridden by environment variables)
+# In production, this should be set to specific origins (comma-separated)
+# Example: "https://app.example.com,https://admin.example.com"
+CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:8501")
+
 # Paths
 BASE_DOCS_DIR: Path = Path("data/raw")
 PROCESSED_DOCS_DIR: Path = Path("data/processed")
