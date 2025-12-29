@@ -27,8 +27,10 @@ allowed_origins = [origin.strip() for origin in config.CORS_ORIGINS.split(",") i
 
 # Ensure at least one origin is configured
 if not allowed_origins:
-    logger.warning("No CORS origins configured. Using default: http://localhost:8501")
-    allowed_origins = ["http://localhost:8501"]
+    logger.warning(
+        f"No CORS origins configured. Using default: {config.DEFAULT_CORS_ORIGIN}"
+    )
+    allowed_origins = [config.DEFAULT_CORS_ORIGIN]
 
 app.add_middleware(
     CORSMiddleware,
