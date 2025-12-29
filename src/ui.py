@@ -32,11 +32,7 @@ def build_citations_data(citations: list[Citation]) -> list[dict[str, str]]:
     """
     citations_data = []
     for citation in citations:
-        header = (
-            citation.header
-            if citation.header
-            else (citation.title if citation.title else "-")
-        )
+        header = citation.header if citation.header else (citation.title if citation.title else "-")
         citations_data.append(
             {
                 "ID": citation.label,
@@ -104,12 +100,8 @@ def render() -> None:
                 index=default_idx,
             )
 
-        top_k = st.slider(
-            "Top-K (Initial Results)", min_value=10, max_value=100, value=25, step=5
-        )
-        top_n = st.slider(
-            "Top-N (Reranked Results)", min_value=1, max_value=10, value=5, step=1
-        )
+        top_k = st.slider("Top-K (Initial Results)", min_value=10, max_value=100, value=25, step=5)
+        top_n = st.slider("Top-N (Reranked Results)", min_value=1, max_value=10, value=5, step=1)
         use_reranker = st.checkbox("Use Reranker", value=True)
         debug_mode = st.checkbox("Debug Mode", value=False)
 
@@ -137,11 +129,15 @@ def render() -> None:
                     response_data = st.session_state[response_key]
 
                     # Show sources if available
-                    if response_data["citations"] and message["content"] != RAG_REFUSAL_MESSAGE and not message["content"].startswith("❌"):
+                    if (
+                        response_data["citations"]
+                        and message["content"] != RAG_REFUSAL_MESSAGE
+                        and not message["content"].startswith("❌")
+                    ):
                         with st.expander("📚 Sources Used"):
                             citations_data = build_citations_data(response_data["citations"])
                             df = pd.DataFrame(citations_data)
-                            st.dataframe(df, width='stretch')
+                            st.dataframe(df, width="stretch")
 
                     # Show debug if available
                     if response_data["debug_mode"] and response_data["context_used"]:
@@ -177,9 +173,7 @@ def render() -> None:
                 st.markdown(response.answer)
 
                 # Append assistant message to state (just the answer)
-                st.session_state.messages.append(
-                    {"role": "assistant", "content": response.answer}
-                )
+                st.session_state.messages.append({"role": "assistant", "content": response.answer})
 
                 # Store response metadata in session state for persistence
                 response_key = f"response_{len(st.session_state.messages) - 1}"
@@ -219,7 +213,11 @@ def render() -> None:
                     "and accessible at http://localhost:11434"
                 )
             else:
-                user_msg = f"❌ **API Error**: {error_str[:200]}..." if len(error_str) > 200 else f"❌ **API Error**: {error_str}"
+                user_msg = (
+                    f"❌ **API Error**: {error_str[:200]}..."
+                    if len(error_str) > 200
+                    else f"❌ **API Error**: {error_str}"
+                )
 
             logger.error(f"API client error: {error_str}")
 
@@ -233,13 +231,15 @@ def render() -> None:
                         st.exception(e)
 
                 # Append to chat history
-                st.session_state.messages.append(
-                    {"role": "assistant", "content": user_msg}
-                )
+                st.session_state.messages.append({"role": "assistant", "content": user_msg})
 
         except Exception as e:
             error_str = str(e)
-            user_msg = f"❌ **An error occurred**: {error_str[:200]}..." if len(error_str) > 200 else f"❌ **An error occurred**: {error_str}"
+            user_msg = (
+                f"❌ **An error occurred**: {error_str[:200]}..."
+                if len(error_str) > 200
+                else f"❌ **An error occurred**: {error_str}"
+            )
 
             logger.error(f"Unexpected error: {error_str}", exc_info=True)
 
@@ -253,6 +253,4 @@ def render() -> None:
                         st.exception(e)
 
                 # Append to chat history
-                st.session_state.messages.append(
-                    {"role": "assistant", "content": user_msg}
-                )
+                st.session_state.messages.append({"role": "assistant", "content": user_msg})

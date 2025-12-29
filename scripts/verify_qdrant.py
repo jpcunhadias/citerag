@@ -54,14 +54,12 @@ def verify_collection(collection_name: str) -> int:
             print(f"   Dense vector distance: {dense_config.distance}")
         # Note: sparse vectors config is now in a separate part of the collection config
         if collection_info.config.params.sparse_vectors:
-             print("   Sparse vector: configured")
+            print("   Sparse vector: configured")
     else:
         print(f"   Single vector size: {vectors_config.size}")
 
     # Sample a point (with vectors to verify structure)
-    points, _ = client.scroll(
-        collection_name=collection_name, limit=1, with_vectors=True
-    )
+    points, _ = client.scroll(collection_name=collection_name, limit=1, with_vectors=True)
     if points:
         point = points[0]
         print(f"\n--- Sample Point (ID: {point.id}) ---")
@@ -84,9 +82,7 @@ def verify_collection(collection_name: str) -> int:
             if "sparse" in point.vector:
                 sparse_vec = point.vector["sparse"]
                 if hasattr(sparse_vec, "indices"):
-                    print(
-                        f"   [SUCCESS] Sparse vector: {len(sparse_vec.indices)} non-zero values"
-                    )
+                    print(f"   [SUCCESS] Sparse vector: {len(sparse_vec.indices)} non-zero values")
                 else:
                     print("   [SUCCESS] Sparse vector: present")
         else:
@@ -95,9 +91,7 @@ def verify_collection(collection_name: str) -> int:
         # Show sample payload
         print("\n   Sample payload:")
         print(f"   - text: {point.payload.get('text', 'N/A')[:100]}...")
-        print(
-            f"   - canonical_source_id: {point.payload.get('canonical_source_id', 'N/A')}"
-        )
+        print(f"   - canonical_source_id: {point.payload.get('canonical_source_id', 'N/A')}")
         print(f"   - header: {point.payload.get('header', 'N/A')}")
         print(f"   - source_path: {point.payload.get('source_path', 'N/A')}")
 

@@ -52,9 +52,7 @@ class TestRAGPipelineIntegration:
         not os.getenv("QDRANT_URL") and not os.getenv("QDRANT_HOST"),
         reason="Qdrant not configured (set QDRANT_URL or QDRANT_HOST env var)",
     )
-    def test_rag_pipeline_with_mocked_llm(
-        self, test_collection_name, qdrant_available
-    ):
+    def test_rag_pipeline_with_mocked_llm(self, test_collection_name, qdrant_available):
         """Test full RAG pipeline with mocked LLM (requires Qdrant)."""
         if not qdrant_available:
             pytest.skip("Qdrant not available")
@@ -154,9 +152,7 @@ class TestRAGPipelineIntegration:
         )
 
         # Should return refusal without calling LLM
-        assert (
-            response.answer == "I couldn't find this in the indexed documentation."
-        )
+        assert response.answer == "I couldn't find this in the indexed documentation."
         assert len(response.citations) == 0
         assert len(response.used_chunk_ids) == 0
         mock_llm.generate.assert_not_called()
@@ -239,8 +235,8 @@ class TestRAGPipelineIntegration:
 
     def test_rag_pipeline_budget_enforcement(self):
         """Test that RAG pipeline enforces context budget."""
-        from src.rag import RAGService
         from src.models import SearchResult
+        from src.rag import RAGService
 
         # Create mock services
         mock_search = MagicMock()
@@ -281,8 +277,8 @@ class TestRAGPipelineIntegration:
 
     def test_rag_pipeline_citation_compliance(self):
         """Test that RAG pipeline enforces citation compliance."""
-        from src.rag import RAGService
         from src.models import SearchResult
+        from src.rag import RAGService
 
         # Create mock services
         mock_search = MagicMock()
@@ -313,9 +309,7 @@ class TestRAGPipelineIntegration:
             rerank=False,
             debug=False,
         )
-        assert (
-            response.answer == "I couldn't find this in the indexed documentation."
-        )
+        assert response.answer == "I couldn't find this in the indexed documentation."
 
         # Test 2: Answer with citations should be kept
         mock_llm.generate.return_value = "This answer has [1] citation."
@@ -328,9 +322,7 @@ class TestRAGPipelineIntegration:
             debug=False,
         )
         assert "[1]" in response.answer
-        assert (
-            response.answer != "I couldn't find this in the indexed documentation."
-        )
+        assert response.answer != "I couldn't find this in the indexed documentation."
 
         # Test 3: Exact refusal string should be kept
         refusal = "I couldn't find this in the indexed documentation."
@@ -344,4 +336,3 @@ class TestRAGPipelineIntegration:
             debug=False,
         )
         assert response.answer == refusal
-

@@ -1,11 +1,10 @@
 """Unit tests for the RAG orchestration service."""
 
-import re
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.models import Citation, RAGResponse, SearchResult
+from src.models import SearchResult
 from src.rag import RAGService
 
 
@@ -60,13 +59,9 @@ class TestRAGService:
             ),
         ]
 
-    def test_build_context_formats_correctly(
-        self, rag_service, sample_search_results
-    ):
+    def test_build_context_formats_correctly(self, rag_service, sample_search_results):
         """Test that build_context formats context string correctly."""
-        context_str, citations, used_chunk_ids = rag_service.build_context(
-            sample_search_results
-        )
+        context_str, citations, used_chunk_ids = rag_service.build_context(sample_search_results)
 
         # Check format: [1] text\n\n[2] text\n\n
         assert "[1]" in context_str
@@ -75,13 +70,9 @@ class TestRAGService:
         assert "Second chunk text" in context_str
         assert context_str.count("\n\n") == 2  # Two chunks, two separators
 
-    def test_build_context_creates_citations_with_scores(
-        self, rag_service, sample_search_results
-    ):
+    def test_build_context_creates_citations_with_scores(self, rag_service, sample_search_results):
         """Test that build_context creates Citation objects with scores."""
-        context_str, citations, used_chunk_ids = rag_service.build_context(
-            sample_search_results
-        )
+        context_str, citations, used_chunk_ids = rag_service.build_context(sample_search_results)
 
         assert len(citations) == 2
         assert citations[0].label == "1"
@@ -91,13 +82,9 @@ class TestRAGService:
         assert citations[1].chunk_id == "chunk2"
         assert citations[1].score == 0.8
 
-    def test_build_context_labels_are_sequential(
-        self, rag_service, sample_search_results
-    ):
+    def test_build_context_labels_are_sequential(self, rag_service, sample_search_results):
         """Test that build_context creates sequential labels."""
-        context_str, citations, used_chunk_ids = rag_service.build_context(
-            sample_search_results
-        )
+        context_str, citations, used_chunk_ids = rag_service.build_context(sample_search_results)
 
         labels = [c.label for c in citations]
         assert labels == ["1", "2"]
@@ -142,9 +129,7 @@ class TestRAGService:
                 canonical_source_id="doc2.md",
             )
 
-            context_str, citations, used_chunk_ids = rag_service.build_context(
-                [chunk1, chunk2]
-            )
+            context_str, citations, used_chunk_ids = rag_service.build_context([chunk1, chunk2])
 
             # Should only include first chunk
             assert len(citations) == 1
@@ -159,9 +144,7 @@ class TestRAGService:
         assert len(citations) == 0
         assert len(used_chunk_ids) == 0
 
-    def test_ask_returns_refusal_on_empty_context(
-        self, rag_service, mock_search_service
-    ):
+    def test_ask_returns_refusal_on_empty_context(self, rag_service, mock_search_service):
         """Test that ask returns refusal when context is empty."""
         mock_search_service.hybrid_search.return_value = []
         mock_llm_client = rag_service.llm_client
@@ -307,7 +290,7 @@ class TestRAGService:
         mock_reranker_service.rerank.return_value = reranked_results
         mock_llm_client.generate.return_value = "Answer [1]"
 
-        response = rag_service.ask(
+        rag_service.ask(
             query="test",
             collection="test_collection",
             top_k=25,
@@ -342,7 +325,7 @@ class TestRAGService:
         mock_search_service.hybrid_search.return_value = search_results
         mock_llm_client.generate.return_value = "Answer [1]"
 
-        response = rag_service.ask(
+        rag_service.ask(
             query="test",
             collection="test_collection",
             top_k=25,
@@ -378,9 +361,7 @@ class TestRAGService:
         assert "[1]" in call_args  # Context label
         assert "First chunk text" in call_args  # Context content
 
-    def test_ask_handles_empty_search_results(
-        self, rag_service, mock_search_service
-    ):
+    def test_ask_handles_empty_search_results(self, rag_service, mock_search_service):
         """Test that ask handles empty search results."""
         mock_search_service.hybrid_search.return_value = []
 
@@ -422,4 +403,3 @@ class TestRAGService:
 
         assert response.answer == "I couldn't find this in the indexed documentation."
         assert len(response.citations) == 0
-

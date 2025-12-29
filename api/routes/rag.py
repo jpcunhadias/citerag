@@ -43,7 +43,10 @@ async def ask(request: AskRequest) -> AskResponse:
         )
 
         # Execute RAG pipeline in thread pool (services are sync)
-        logger.info(f"Processing ask request: query='{request.query[:50]}...', collection={request.collection}")
+        logger.info(
+            f"Processing ask request: query='{request.query[:50]}...', "
+            f"collection={request.collection}"
+        )
         response = await asyncio.to_thread(
             rag_service.ask,
             query=request.query,
@@ -89,7 +92,10 @@ async def search(request: SearchRequest) -> SearchResponse:
         search_service = get_search_service()
 
         # Execute search in thread pool (service is sync)
-        logger.info(f"Processing search request: query='{request.query[:50]}...', collection={request.collection}")
+        logger.info(
+            f"Processing search request: query='{request.query[:50]}...', "
+            f"collection={request.collection}"
+        )
         results = await asyncio.to_thread(
             search_service.hybrid_search,
             query=request.query,
@@ -103,4 +109,3 @@ async def search(request: SearchRequest) -> SearchResponse:
     except Exception as e:
         logger.error(f"Search error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}") from e
-

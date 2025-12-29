@@ -58,7 +58,9 @@ async def health_check(response: Response) -> HealthResponse:
     qdrant_status = check_qdrant()
     ollama_status = check_ollama()
 
-    overall_status = "healthy" if qdrant_status == "healthy" and ollama_status == "healthy" else "unhealthy"
+    overall_status = (
+        "healthy" if qdrant_status == "healthy" and ollama_status == "healthy" else "unhealthy"
+    )
 
     # Set appropriate status code for load balancers and monitoring tools
     if overall_status == "unhealthy":
@@ -71,4 +73,3 @@ async def health_check(response: Response) -> HealthResponse:
             "ollama": ollama_status,
         },
     )
-

@@ -5,11 +5,13 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 import httpx
-from src.api_client import APIClient, APIClientError
-from src.config import API_BASE_URL
+
+# Add project root for local imports
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from src.api_client import APIClient, APIClientError  # noqa: E402
+from src.config import API_BASE_URL  # noqa: E402
 
 
 def wait_for_api(max_retries=10, delay=2):
@@ -30,8 +32,8 @@ def wait_for_api(max_retries=10, delay=2):
                 time.sleep(delay)
             else:
                 print(f"[FAIL] API not available after {max_retries} retries")
-                print(f"\n[WARNING] Start FastAPI server:")
-                print(f"   uvicorn api.main:app --reload")
+                print("\n[WARNING] Start FastAPI server:")
+                print("   uvicorn api.main:app --reload")
                 return False
     return False
 
@@ -53,7 +55,7 @@ def _test_health_endpoint():
             print(f"Status: {data['status']}")
             print(f"Services: {data['services']}")
 
-            if data['status'] == 'healthy':
+            if data["status"] == "healthy":
                 print("[PASS] All services healthy")
                 return True
             else:
@@ -77,7 +79,7 @@ def _test_collections_endpoint():
             response.raise_for_status()
             data = response.json()
 
-            collections = data.get('collections', [])
+            collections = data.get("collections", [])
             print(f"Found {len(collections)} collections: {collections}")
 
             if collections:
@@ -98,11 +100,7 @@ def _test_search_endpoint(collection_name: str):
     print("=" * 80)
 
     url = f"{API_BASE_URL}/api/search"
-    payload = {
-        "query": "merge",
-        "collection": collection_name,
-        "top_k": 5
-    }
+    payload = {"query": "merge", "collection": collection_name, "top_k": 5}
 
     try:
         with httpx.Client(timeout=60.0) as client:
@@ -110,7 +108,7 @@ def _test_search_endpoint(collection_name: str):
             response.raise_for_status()
             data = response.json()
 
-            results = data.get('results', [])
+            results = data.get("results", [])
             print(f"Found {len(results)} results")
 
             if results:
@@ -139,7 +137,7 @@ def _test_ask_endpoint(collection_name: str):
         "top_k": 10,
         "top_n": 3,
         "rerank": True,
-        "debug": False
+        "debug": False,
     }
 
     try:
@@ -149,8 +147,8 @@ def _test_ask_endpoint(collection_name: str):
             response.raise_for_status()
             data = response.json()
 
-            answer = data.get('answer', '')
-            citations = data.get('citations', [])
+            answer = data.get("answer", "")
+            citations = data.get("citations", [])
 
             print(f"Answer: {answer[:200]}...")
             print(f"Citations: {len(citations)}")
@@ -189,11 +187,7 @@ def _test_api_client_search(client: APIClient, collection_name: str):
     print("=" * 80)
 
     try:
-        results = client.search(
-            query="merge",
-            collection=collection_name,
-            top_k=5
-        )
+        results = client.search(query="merge", collection=collection_name, top_k=5)
         print(f"[PASS] APIClient search working, found {len(results)} results")
         if results:
             print(f"   First result score: {results[0].score:.4f}")
@@ -217,13 +211,15 @@ def _test_api_client_ask(client: APIClient, collection_name: str):
             top_k=10,
             top_n=3,
             rerank=True,
-            debug=False
+            debug=False,
         )
-        print(f"[PASS] APIClient ask working")
+        print("[PASS] APIClient ask working")
         print(f"   Answer length: {len(response.answer)} chars")
         print(f"   Citations: {len(response.citations)}")
         if response.citations:
-            print(f"   First citation: {response.citations[0].label} - {response.citations[0].header or 'N/A'}")
+            citation = response.citations[0]
+            header = citation.header or "N/A"
+            print(f"   First citation: {citation.label} - {header}")
         return True
     except APIClientError as e:
         print(f"[FAIL] {e}")
@@ -293,4 +289,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-

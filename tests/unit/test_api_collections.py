@@ -48,4 +48,3 @@ def test_get_collections_qdrant_error(monkeypatch):
     # Assert
     assert response.status_code == 503
     assert "Unable to connect to Qdrant" in response.json()["detail"]
-

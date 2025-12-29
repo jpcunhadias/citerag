@@ -1,7 +1,7 @@
 """Device management utilities for CUDA/CPU selection."""
 
 import logging
-from typing import Literal, Optional
+from typing import Optional
 
 import torch
 
@@ -44,4 +44,3 @@ def get_free_vram_gb() -> Optional[float]:
         return None
 
     return torch.cuda.get_device_properties(0).total_memory / (1024**3)
-

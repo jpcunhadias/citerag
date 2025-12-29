@@ -82,7 +82,9 @@ class APIClient:
             )
 
         except httpx.HTTPStatusError as e:
-            error_msg = f"API request failed with status {e.response.status_code}: {e.response.text}"
+            error_msg = (
+                f"API request failed with status {e.response.status_code}: {e.response.text}"
+            )
             logger.error(error_msg)
             raise APIClientError(error_msg) from e
         except httpx.RequestError as e:
@@ -135,7 +137,9 @@ class APIClient:
             return [SearchResult(**item) for item in result["results"]]
 
         except httpx.HTTPStatusError as e:
-            error_msg = f"API request failed with status {e.response.status_code}: {e.response.text}"
+            error_msg = (
+                f"API request failed with status {e.response.status_code}: {e.response.text}"
+            )
             logger.error(error_msg)
             raise APIClientError(error_msg) from e
         except httpx.RequestError as e:
@@ -169,7 +173,9 @@ class APIClient:
             return result["collections"]
 
         except httpx.HTTPStatusError as e:
-            error_msg = f"API request failed with status {e.response.status_code}: {e.response.text}"
+            error_msg = (
+                f"API request failed with status {e.response.status_code}: {e.response.text}"
+            )
             logger.error(error_msg)
             raise APIClientError(error_msg) from e
         except httpx.RequestError as e:
@@ -180,4 +186,3 @@ class APIClient:
             error_msg = f"Unexpected error in API client: {str(e)}"
             logger.error(error_msg)
             raise APIClientError(error_msg) from e
-

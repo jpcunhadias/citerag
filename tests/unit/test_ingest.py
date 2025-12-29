@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-import pytest
 from qdrant_client.models import SparseVector
 
 from src.config import CHUNK_OVERLAP, CHUNK_SIZE, CHUNKER_FINGERPRINT
@@ -379,4 +378,3 @@ class TestVectorService:
         assert sparse is not None
         assert len(sparse) == 1
         assert isinstance(sparse[0], dict)
-

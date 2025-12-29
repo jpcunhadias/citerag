@@ -28,4 +28,3 @@ def convert_sparse_dict_to_qdrant_sparsevector(
     values = [item[1] for item in sorted_items]
 
     return SparseVector(indices=indices, values=values)
-

@@ -1,8 +1,10 @@
 # scripts/verify_services.py
-from src.llm import OllamaClient
-from src.rerank import RerankerService
-from src.models import SearchResult
 import sys
+
+from src.llm import OllamaClient
+from src.models import SearchResult
+from src.rerank import RerankerService
+
 
 def test_services():
     print("--- 1. Testing LLM Connection ---")
@@ -19,8 +21,12 @@ def test_services():
     try:
         reranker = RerankerService()
         docs = [
-            SearchResult(chunk_id="1", score=0.1, text="Apple", source_path="a", canonical_source_id="a"),
-            SearchResult(chunk_id="2", score=0.1, text="Car", source_path="b", canonical_source_id="b")
+            SearchResult(
+                chunk_id="1", score=0.1, text="Apple", source_path="a", canonical_source_id="a"
+            ),
+            SearchResult(
+                chunk_id="2", score=0.1, text="Car", source_path="b", canonical_source_id="b"
+            ),
         ]
         # Query matches "Apple", so doc 1 should jump to top with higher score
         ranked = reranker.rerank("fruit", docs, top_n=1)
@@ -34,6 +40,7 @@ def test_services():
     except Exception as e:
         print(f"[FAIL] Reranker Failed: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     test_services()

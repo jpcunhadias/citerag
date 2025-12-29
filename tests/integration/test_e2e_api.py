@@ -1,13 +1,13 @@
 """End-to-end tests for the RAG API."""
 
+import re
 import sys
 from pathlib import Path
-import re
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add project root for local imports
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from src.api_client import APIClient, APIClientError
+from src.api_client import APIClient, APIClientError  # noqa: E402
 
 # Use test_collection for testing (fallback to smoke_docs if test_collection doesn't exist)
 TEST_COLLECTION = "test_collection"
@@ -112,6 +112,7 @@ def main():
 
         # Update TEST_COLLECTION for the test functions
         import tests.integration.test_e2e_api as test_module
+
         test_module.TEST_COLLECTION = collection_to_use
     except APIClientError as e:
         print(f"[FAIL] ERROR: Could not connect to API to get collections: {e}")
@@ -134,4 +135,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-

@@ -87,9 +87,7 @@ class TestRerankerService:
 
     @patch("src.rerank.FlagReranker")
     @patch("src.rerank.get_device")
-    def test_reranker_initialization_no_model_attr(
-        self, mock_get_device, mock_flag_reranker_class
-    ):
+    def test_reranker_initialization_no_model_attr(self, mock_get_device, mock_flag_reranker_class):
         """Test that RerankerService handles reranker without model attribute."""
         mock_device = MagicMock()
         mock_device.type = "cuda"
@@ -157,9 +155,7 @@ class TestRerankerService:
 
     @patch("src.rerank.FlagReranker")
     @patch("src.rerank.get_device")
-    def test_rerank_handles_empty_results(
-        self, mock_get_device, mock_flag_reranker_class
-    ):
+    def test_rerank_handles_empty_results(self, mock_get_device, mock_flag_reranker_class):
         """Test that rerank handles empty results list."""
         mock_device = MagicMock()
         mock_device.type = "cuda"
@@ -242,9 +238,7 @@ class TestRerankerService:
 
     @patch("src.rerank.FlagReranker")
     @patch("src.rerank.get_device")
-    def test_rerank_handles_single_score(
-        self, mock_get_device, mock_flag_reranker_class
-    ):
+    def test_rerank_handles_single_score(self, mock_get_device, mock_flag_reranker_class):
         """Test that rerank handles single score (not a list)."""
         mock_device = MagicMock()
         mock_device.type = "cuda"
@@ -298,4 +292,3 @@ class TestRerankerService:
         assert call_args[0] == [query, sample_results[0].text]
         assert call_args[1] == [query, sample_results[1].text]
         assert call_args[2] == [query, sample_results[2].text]
-

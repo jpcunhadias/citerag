@@ -118,12 +118,8 @@ def ask_command(args: argparse.Namespace) -> int:
                     if len(citation.source_path) > 40
                     else citation.source_path
                 )
-                header_display = (
-                    header[:38] + ".." if len(header) > 40 else header
-                )
-                print(
-                    f"{citation.label:<8} {score:<12.4f} {file_display:<40} {header_display}"
-                )
+                header_display = header[:38] + ".." if len(header) > 40 else header
+                print(f"{citation.label:<8} {score:<12.4f} {file_display:<40} {header_display}")
         else:
             print("No sources used.")
 
@@ -311,4 +307,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

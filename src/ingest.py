@@ -17,7 +17,6 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
     PointStruct,
-    SparseVector,
     SparseVectorParams,
     VectorParams,
 )
@@ -71,9 +70,7 @@ def clean_text(text: str) -> str:
         elif in_code_block:
             # Inside code block: preserve line exactly as-is (including indentation)
             cleaned_lines.append(line)
-        elif stripped_line.startswith(("* ", "- ")) or re.match(
-            r"^\d+\. ", stripped_line
-        ):
+        elif stripped_line.startswith(("* ", "- ")) or re.match(r"^\d+\. ", stripped_line):
             # List items: preserve as-is (including indentation for nested items)
             # Matches bullet lists (*, -) and numbered lists (1., 2., 10., etc.)
             cleaned_lines.append(line)
@@ -234,11 +231,7 @@ def chunk_documents(documents: list[dict]) -> list[DocumentChunk]:
             section_text = header_split.page_content
             header_metadata = header_split.metadata
             # Extract header from metadata
-            header = (
-                header_metadata.get("Header 1")
-                or header_metadata.get("Header 2")
-                or None
-            )
+            header = header_metadata.get("Header 1") or header_metadata.get("Header 2") or None
 
             if not section_text.strip():
                 continue
@@ -247,9 +240,7 @@ def chunk_documents(documents: list[dict]) -> list[DocumentChunk]:
             try:
                 text_chunks = text_splitter.split_text(section_text)
             except Exception as e:
-                logger.warning(
-                    f"Error in text splitting for {canonical_source_id}: {e}"
-                )
+                logger.warning(f"Error in text splitting for {canonical_source_id}: {e}")
                 text_chunks = [section_text]
 
             # Create DocumentChunk for each text chunk
@@ -301,14 +292,10 @@ class VectorService:
         device = get_device()
         use_fp16 = device.type == "cuda"
         logger.info(f"Initializing BGEM3FlagModel with use_fp16={use_fp16}")
-        self.model = BGEM3FlagModel(
-            model_name_or_path=EMBEDDING_MODEL_NAME, use_fp16=use_fp16
-        )
+        self.model = BGEM3FlagModel(model_name_or_path=EMBEDDING_MODEL_NAME, use_fp16=use_fp16)
         self._dense_dimension: Optional[int] = None
 
-    def embed_documents(
-        self, texts: list[str]
-    ) -> tuple[np.ndarray, list[dict[int, float]], int]:
+    def embed_documents(self, texts: list[str]) -> tuple[np.ndarray, list[dict[int, float]], int]:
         """
         Generate dense and sparse embeddings for documents.
 
@@ -329,9 +316,7 @@ class VectorService:
         # Process in batches
         for i in range(0, len(texts), self.batch_size):
             batch_texts = texts[i : i + self.batch_size]
-            logger.debug(
-                f"Processing batch {i // self.batch_size + 1} ({len(batch_texts)} texts)"
-            )
+            logger.debug(f"Processing batch {i // self.batch_size + 1} ({len(batch_texts)} texts)")
 
             # Encode batch
             result = self.model.encode(
@@ -371,16 +356,14 @@ class VectorService:
                 # Log available keys for debugging if not found
                 if batch_dense is None or batch_sparse is None:
                     logger.error(f"Available keys in result: {list(result.keys())}")
+                    available_keys = list(result.keys())
                     raise ValueError(
-                        f"Could not find dense/sparse vectors in result. Available keys: {list(result.keys())}"
+                        f"Could not find dense/sparse vectors in result. "
+                        f"Available keys: {available_keys}"
                     )
             else:
-                logger.error(
-                    f"Unexpected return type from model.encode(): {type(result)}"
-                )
-                raise ValueError(
-                    f"Unexpected return type from model.encode(): {type(result)}"
-                )
+                logger.error(f"Unexpected return type from model.encode(): {type(result)}")
+                raise ValueError(f"Unexpected return type from model.encode(): {type(result)}")
 
             if batch_dense is None:
                 raise ValueError("Dense vectors not returned from model.encode()")
@@ -390,7 +373,8 @@ class VectorService:
             # Check for empty lists (defensive check to prevent length mismatch)
             if isinstance(batch_sparse, list) and len(batch_sparse) == 0:
                 raise ValueError(
-                    "Sparse vectors list is empty, which would cause length mismatch with dense vectors"
+                    "Sparse vectors list is empty, which would cause length "
+                    "mismatch with dense vectors"
                 )
 
             # Infer dimension from first batch
@@ -452,14 +436,14 @@ class VectorService:
                 sparse_vecs = None
 
             if dense_vecs is None or sparse_vecs is None:
-                logger.error(f"Available keys in result: {list(result.keys())}")
+                available_keys = list(result.keys())
+                logger.error(f"Available keys in result: {available_keys}")
                 raise ValueError(
-                    f"Could not find dense/sparse vectors in result. Available keys: {list(result.keys())}"
+                    f"Could not find dense/sparse vectors in result. "
+                    f"Available keys: {available_keys}"
                 )
         else:
-            raise ValueError(
-                f"Unexpected return type from model.encode(): {type(result)}"
-            )
+            raise ValueError(f"Unexpected return type from model.encode(): {type(result)}")
 
         if dense_vecs is None or sparse_vecs is None:
             raise ValueError("Vectors not returned from model.encode()")
@@ -468,9 +452,7 @@ class VectorService:
         if isinstance(sparse_vecs, list) and len(sparse_vecs) == 0:
             raise ValueError("Sparse vectors list is empty")
 
-        dense_vec = (
-            dense_vecs[0] if isinstance(dense_vecs, (list, np.ndarray)) else dense_vecs
-        )
+        dense_vec = dense_vecs[0] if isinstance(dense_vecs, (list, np.ndarray)) else dense_vecs
         sparse_vec = sparse_vecs[0] if isinstance(sparse_vecs, list) else sparse_vecs
 
         return dense_vec, sparse_vec
@@ -487,9 +469,7 @@ def index_to_qdrant(
         collection_name: Name of the Qdrant collection.
         dense_dimension: Dimension of dense vectors (inferred from model).
     """
-    logger.info(
-        f"Indexing {len(chunks)} chunks to Qdrant collection '{collection_name}'"
-    )
+    logger.info(f"Indexing {len(chunks)} chunks to Qdrant collection '{collection_name}'")
 
     if not chunks:
         logger.warning("No chunks to index")
@@ -506,11 +486,10 @@ def index_to_qdrant(
         logger.info(
             f"Creating collection '{collection_name}' with dense_dimension={dense_dimension}"
         )
-        # For named vectors with sparse support, use vectors_config for dense and sparse_vectors_config for sparse
+        # For named vectors with sparse support, use vectors_config for dense
+        # and sparse_vectors_config for sparse
         vectors_config = {
-            DENSE_VECTOR_NAME: VectorParams(
-                size=dense_dimension, distance=Distance.COSINE
-            ),
+            DENSE_VECTOR_NAME: VectorParams(size=dense_dimension, distance=Distance.COSINE),
         }
         sparse_vectors_config = {
             SPARSE_VECTOR_NAME: SparseVectorParams(),
@@ -586,9 +565,7 @@ def ingest_documents(
 
     # Step 1: Load documents
     logger.info("Step 1: Loading documents")
-    documents = load_documents(
-        docs_path, input_root=input_root, library=library, version=version
-    )
+    documents = load_documents(docs_path, input_root=input_root, library=library, version=version)
 
     if not documents:
         logger.warning("No documents found, exiting pipeline")
@@ -611,9 +588,7 @@ def ingest_documents(
     logger.info("Step 4: Generating embeddings")
     vector_service = VectorService(batch_size=batch_size)
     texts = [chunk.text for chunk in chunks]
-    dense_vectors, sparse_vectors, dense_dimension = vector_service.embed_documents(
-        texts
-    )
+    dense_vectors, sparse_vectors, dense_dimension = vector_service.embed_documents(texts)
 
     # Step 5: Attach vectors to chunks
     logger.info("Step 5: Attaching vectors to chunks")
@@ -623,8 +598,6 @@ def ingest_documents(
 
     # Step 6: Index to Qdrant
     logger.info("Step 6: Indexing to Qdrant")
-    index_to_qdrant(
-        chunks, collection_name=collection_name, dense_dimension=dense_dimension
-    )
+    index_to_qdrant(chunks, collection_name=collection_name, dense_dimension=dense_dimension)
 
     logger.info("Ingestion pipeline completed successfully")

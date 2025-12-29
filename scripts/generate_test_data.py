@@ -14,7 +14,8 @@ def generate_happy_path_docs() -> None:
     pandas_dir.mkdir(exist_ok=True)
 
     # Document 1: DataFrame creation
-    (pandas_dir / "dataframe_creation.md").write_text("""# Creating DataFrames
+    (pandas_dir / "dataframe_creation.md").write_text(
+        """# Creating DataFrames
 
 Pandas provides multiple ways to create DataFrames.
 
@@ -53,10 +54,12 @@ Create an empty DataFrame with specific columns:
 ```python
 df = pd.DataFrame(columns=['name', 'age', 'city'])
 ```
-""")
+"""
+    )
 
     # Document 2: DataFrame operations
-    (pandas_dir / "dataframe_operations.md").write_text("""# DataFrame Operations
+    (pandas_dir / "dataframe_operations.md").write_text(
+        """# DataFrame Operations
 
 Common operations on pandas DataFrames.
 
@@ -100,10 +103,12 @@ Group by column and aggregate:
 df.groupby('category')['value'].sum()
 df.groupby('category').agg({'value': 'sum', 'count': 'count'})
 ```
-""")
+"""
+    )
 
     # Document 3: Indexing
-    (pandas_dir / "indexing.md").write_text("""# Indexing and Selection
+    (pandas_dir / "indexing.md").write_text(
+        """# Indexing and Selection
 
 How to select data from DataFrames.
 
@@ -140,9 +145,11 @@ Modify values using loc:
 df.loc[0, 'age'] = 26
 df.loc[df['age'] > 30, 'status'] = 'senior'
 ```
-""")
+"""
+    )
 
-    print(f"[PASS] Generated {len(list(pandas_dir.glob('*.md')))} happy path documents in {pandas_dir}")
+    num_docs = len(list(pandas_dir.glob("*.md")))
+    print(f"[PASS] Generated {num_docs} happy path documents in {pandas_dir}")
 
 
 def generate_refusal_path_docs() -> None:
@@ -152,7 +159,8 @@ def generate_refusal_path_docs() -> None:
     unrelated_dir = TEST_DATA_DIR / "unrelated_docs"
     unrelated_dir.mkdir(exist_ok=True)
 
-    (unrelated_dir / "cooking.md").write_text("""# Cooking Recipes
+    (unrelated_dir / "cooking.md").write_text(
+        """# Cooking Recipes
 
 This document is about cooking, not programming.
 
@@ -163,9 +171,11 @@ To make pasta, boil water and add salt. Cook pasta for 8-12 minutes.
 ## Baking Bread
 
 Mix flour, water, yeast, and salt. Knead for 10 minutes. Let rise for 1 hour.
-""")
+"""
+    )
 
-    (unrelated_dir / "travel.md").write_text("""# Travel Guide
+    (unrelated_dir / "travel.md").write_text(
+        """# Travel Guide
 
 Information about travel destinations.
 
@@ -176,9 +186,11 @@ Paris is the capital of France. Visit the Eiffel Tower and Louvre Museum.
 ## Tokyo
 
 Tokyo is the capital of Japan. Famous for sushi and cherry blossoms.
-""")
+"""
+    )
 
-    (unrelated_dir / "sports.md").write_text("""# Sports Information
+    (unrelated_dir / "sports.md").write_text(
+        """# Sports Information
 
 Various sports and their rules.
 
@@ -189,9 +201,11 @@ Soccer is played with 11 players per team. The field is 100-110 meters long.
 ## Basketball
 
 Basketball is played with 5 players per team. The court is 28 meters long.
-""")
+"""
+    )
 
-    print(f"[PASS] Generated {len(list(unrelated_dir.glob('*.md')))} refusal test documents in {unrelated_dir}")
+    num_docs = len(list(unrelated_dir.glob("*.md")))
+    print(f"[PASS] Generated {num_docs} refusal test documents in {unrelated_dir}")
 
 
 def generate_alternate_collection_docs() -> None:
@@ -201,7 +215,8 @@ def generate_alternate_collection_docs() -> None:
     numpy_dir = TEST_DATA_DIR / "numpy_docs"
     numpy_dir.mkdir(exist_ok=True)
 
-    (numpy_dir / "arrays.md").write_text("""# NumPy Arrays
+    (numpy_dir / "arrays.md").write_text(
+        """# NumPy Arrays
 
 Creating and working with NumPy arrays.
 
@@ -236,9 +251,11 @@ arr1 + arr2
 arr1 * arr2
 np.sqrt(arr)
 ```
-""")
+"""
+    )
 
-    (numpy_dir / "indexing.md").write_text("""# NumPy Array Indexing
+    (numpy_dir / "indexing.md").write_text(
+        """# NumPy Array Indexing
 
 How to access elements in NumPy arrays.
 
@@ -263,9 +280,11 @@ arr[(arr > 5) & (arr < 10)]
 arr[[0, 2, 4]]
 arr[[0, 1], [0, 1]]
 ```
-""")
+"""
+    )
 
-    print(f"[PASS] Generated {len(list(numpy_dir.glob('*.md')))} alternate collection documents in {numpy_dir}")
+    num_docs = len(list(numpy_dir.glob("*.md")))
+    print(f"[PASS] Generated {num_docs} alternate collection documents in {numpy_dir}")
 
 
 def generate_test_queries_file() -> None:
@@ -352,11 +371,20 @@ def main() -> None:
     print("\n[SUCCESS] Test data generation complete!")
     print("\nNext steps:")
     print("1. Ingest pandas_docs collection:")
-    print("   python -m src.cli ingest --input data/raw/test_docs/pandas_docs --collection pandas_docs --library pandas --version 2.0.0")
+    print(
+        "   python -m src.cli ingest --input data/raw/test_docs/pandas_docs "
+        "--collection pandas_docs --library pandas --version 2.0.0"
+    )
     print("\n2. Ingest numpy_docs collection:")
-    print("   python -m src.cli ingest --input data/raw/test_docs/numpy_docs --collection numpy_docs --library numpy --version 1.24.0")
+    print(
+        "   python -m src.cli ingest --input data/raw/test_docs/numpy_docs "
+        "--collection numpy_docs --library numpy --version 1.24.0"
+    )
     print("\n3. Ingest unrelated_docs collection (for refusal testing):")
-    print("   python -m src.cli ingest --input data/raw/test_docs/unrelated_docs --collection unrelated_docs")
+    print(
+        "   python -m src.cli ingest --input data/raw/test_docs/unrelated_docs "
+        "--collection unrelated_docs"
+    )
     print("\n4. Use queries from data/raw/test_docs/TEST_QUERIES.md for testing")
 
 

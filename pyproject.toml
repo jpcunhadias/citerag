@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag-ds-docsearcher"
+version = "0.1.0"
+description = "RAG-based documentation search system"
+requires-python = ">=3.9"
+
+[tool.black]
+line-length = 100
+target-version = ['py39']
+include = '\.pyi?$'
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # Allow unused imports in __init__
+"scripts/*.py" = ["E402"]  # Allow imports after sys.path manipulation
+"tests/integration/test_smoke_ask.py" = ["E402"]  # Allow imports after sys.path manipulation
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: tests that require external services (e.g., Qdrant, Ollama, FastAPI)",
+]

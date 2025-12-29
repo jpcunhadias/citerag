@@ -57,9 +57,7 @@ class TestQdrantIntegration:
         assert test_collection_name in collection_names
 
         # Verify points were upserted
-        points = client.scroll(
-            collection_name=test_collection_name, limit=10, with_vectors=True
-        )[0]
+        points = client.scroll(collection_name=test_collection_name, limit=10, with_vectors=True)[0]
         assert len(points) == 2
 
         # Verify named vectors structure
@@ -78,4 +76,3 @@ class TestQdrantIntegration:
 
         # Cleanup: delete test collection
         client.delete_collection(collection_name=test_collection_name)
-

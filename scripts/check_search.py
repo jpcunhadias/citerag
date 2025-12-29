@@ -24,13 +24,14 @@ def check_vector_names():
 
     # Check ingestion uses these names
     import inspect
+
     source = inspect.getsource(index_to_qdrant)
-    if f"DENSE_VECTOR_NAME" in source:
+    if "DENSE_VECTOR_NAME" in source:
         print("[PASS] Ingestion uses DENSE_VECTOR_NAME constant")
     else:
         print("[WARNING] Check if ingestion uses DENSE_VECTOR_NAME constant")
 
-    if f"SPARSE_VECTOR_NAME" in source:
+    if "SPARSE_VECTOR_NAME" in source:
         print("[PASS] Ingestion uses SPARSE_VECTOR_NAME constant")
     else:
         print("[WARNING] Check if ingestion uses SPARSE_VECTOR_NAME constant")
@@ -57,8 +58,10 @@ def check_payload_keys():
         print(f"  - {key}")
 
     # Check search code extracts these
-    from src.search import SearchService
     import inspect
+
+    from src.search import SearchService
+
     source = inspect.getsource(SearchService.hybrid_search)
 
     missing = []
@@ -92,6 +95,7 @@ def check_embed_query_shape():
 
     # Check conversion
     import numpy as np
+
     if isinstance(dense_vec, np.ndarray):
         dense_list = dense_vec.tolist()
         print(f"[PASS] Dense vector converted to list: {type(dense_list)}")
@@ -100,6 +104,7 @@ def check_embed_query_shape():
         print("[WARNING] Dense vector is not numpy array")
 
     from src.utils.qdrant import convert_sparse_dict_to_qdrant_sparsevector
+
     sparse_vector = convert_sparse_dict_to_qdrant_sparsevector(sparse_dict)
     print(f"[PASS] Sparse vector converted: {type(sparse_vector)}")
     print(f"   Indices sorted: {sparse_vector.indices == sorted(sparse_vector.indices)}")
@@ -112,8 +117,10 @@ def check_fusion_api():
     print("Check 2: Fusion API correctness")
     print("=" * 60)
 
-    from src.search import SearchService
     import inspect
+
+    from src.search import SearchService
+
     source = inspect.getsource(SearchService.hybrid_search)
 
     # Check fusion API uses Prefetch + FusionQuery
@@ -138,8 +145,9 @@ def check_fallback_path():
     print("Check 3: Fallback path correctness (RRF in Python)")
     print("=" * 60)
 
-    from src.search import SearchService
     import inspect
+
+    from src.search import SearchService
 
     # Check prefetch_limit/prefetch_k
     source = inspect.getsource(SearchService.hybrid_search)
@@ -149,9 +157,16 @@ def check_fallback_path():
         and "min_prefetch_limit" in source
         and "prefetch_multiplier" in source
     ):
-        print("[PASS] prefetch_limit/prefetch_k uses min_prefetch_limit and prefetch_multiplier (e.g. max(self.min_prefetch_limit, top_k * self.prefetch_multiplier))")
+        print(
+            "[PASS] prefetch_limit/prefetch_k uses min_prefetch_limit and "
+            "prefetch_multiplier (e.g. max(self.min_prefetch_limit, "
+            "top_k * self.prefetch_multiplier))"
+        )
     else:
-        print("[FAIL] prefetch_limit/prefetch_k calculation not found or does not use min_prefetch_limit/prefetch_multiplier")
+        print(
+            "[FAIL] prefetch_limit/prefetch_k calculation not found or does not "
+            "use min_prefetch_limit/prefetch_multiplier"
+        )
 
     # Check rrf_k
     service = SearchService(QdrantClient(), VectorService())
@@ -192,6 +207,7 @@ def check_filters():
 
     # Check allowed keys
     import inspect
+
     source = inspect.getsource(service.hybrid_search)
     if 'allowed_keys = {"library", "version"}' in source:
         print("[PASS] Filter keys limited to library and version")
@@ -206,7 +222,6 @@ def check_cli_routing():
     print("Check 5: CLI routing")
     print("=" * 60)
 
-    import inspect
     with open("app.py") as f:
         app_source = f.read()
 
@@ -216,7 +231,7 @@ def check_cli_routing():
         print("[WARNING] Check app.py routing")
 
     # Check CLI has search command
-    from src.cli import search_command
+
     print("[PASS] search_command function exists")
     print()
 
@@ -242,4 +257,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
