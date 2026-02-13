@@ -403,3 +403,58 @@ class TestRAGService:
 
         assert response.answer == "I couldn't find this in the indexed documentation."
         assert len(response.citations) == 0
+
+    def test_ask_stream_yields_tokens_then_done(
+        self, rag_service, mock_search_service, mock_reranker_service, mock_llm_client
+    ):
+        """Test that ask_stream yields tokens then done message with citations."""
+        mock_search_service.hybrid_search.return_value = [
+            SearchResult(
+                chunk_id="chunk1",
+                score=0.9,
+                text="Context text",
+                source_path="doc.md",
+                canonical_source_id="doc.md",
+                header="Section",
+            )
+        ]
+        mock_reranker_service.rerank.return_value = mock_search_service.hybrid_search.return_value
+        mock_llm_client.generate_stream.return_value = iter(["Hello", " ", "world"])
+
+        items = list(
+            rag_service.ask_stream(
+                query="test",
+                collection="test_collection",
+                top_k=25,
+                top_n=5,
+                rerank=True,
+            )
+        )
+
+        assert items[:-1] == ["Hello", " ", "world"]
+        assert items[-1]["type"] == "done"
+        assert "citations" in items[-1]
+        assert "used_chunk_ids" in items[-1]
+        assert len(items[-1]["citations"]) == 1
+        assert items[-1]["citations"][0]["chunk_id"] == "chunk1"
+
+    def test_ask_stream_empty_context_yields_refusal_and_done(
+        self, rag_service, mock_search_service
+    ):
+        """Test that ask_stream yields refusal and empty citations when context is empty."""
+        mock_search_service.hybrid_search.return_value = []
+
+        items = list(
+            rag_service.ask_stream(
+                query="test",
+                collection="test_collection",
+                top_k=25,
+                top_n=5,
+                rerank=False,
+            )
+        )
+
+        assert len(items) == 2
+        assert items[0] == "I couldn't find this in the indexed documentation."
+        assert items[1] == {"type": "done", "citations": [], "used_chunk_ids": []}
+        mock_search_service.hybrid_search.assert_called_once()

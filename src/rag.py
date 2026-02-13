@@ -2,6 +2,7 @@
 
 import logging
 import re
+from typing import Iterator, Union
 
 from src.config import RAG_MAX_CONTEXT_CHARS, RAG_REFUSAL_MESSAGE
 from src.llm import OllamaClient
@@ -169,3 +170,69 @@ class RAGService:
             context_used=context_str if debug else None,
             used_chunk_ids=used_chunk_ids,
         )
+
+    def ask_stream(
+        self,
+        query: str,
+        collection: str,
+        top_k: int = 25,
+        top_n: int = 5,
+        rerank: bool = True,
+    ) -> Iterator[Union[str, dict]]:
+        """
+        Execute RAG pipeline and stream LLM tokens. Skips citation compliance check.
+
+        Yields token strings, then a final dict:
+        {"type": "done", "citations": [...], "used_chunk_ids": [...]}.
+
+        Args:
+            query: User query text.
+            collection: Qdrant collection name.
+            top_k: Number of initial search results to retrieve.
+            top_n: Number of results to rerank and use for context.
+            rerank: Whether to apply reranking (default: True).
+
+        Yields:
+            str: Token chunks from the LLM, or a dict with type="done" and citations.
+        """
+        logger.info(
+            f"RAG stream started: query='{query[:50]}...', "
+            f"top_k={top_k}, top_n={top_n}, rerank={rerank}"
+        )
+
+        # Step 1: Hybrid search
+        results = self.search_service.hybrid_search(query=query, collection=collection, top_k=top_k)
+        logger.info(f"Search returned {len(results)} results")
+
+        # Step 2: Rerank if enabled
+        if rerank and results:
+            results = self.reranker_service.rerank(query=query, results=results, top_n=top_n)
+            logger.info(f"Reranking returned {len(results)} results")
+
+        # Step 3: Build context
+        context_str, citations, used_chunk_ids = self.build_context(results)
+
+        # Step 4: Circuit breaker - if context is empty, yield refusal and done
+        if not context_str.strip():
+            logger.warning("Empty context - yielding default response")
+            yield RAG_REFUSAL_MESSAGE
+            yield {"type": "done", "citations": [], "used_chunk_ids": []}
+            return
+
+        # Step 5: Build prompt
+        system_prompt = (
+            "You are a technical assistant. Answer using ONLY the context provided. "
+            "Context is labeled [1], [2]... Every factual statement must cite a label. "
+            f"If the answer is not in the context, say '{RAG_REFUSAL_MESSAGE}' "
+            "Do not guess."
+        )
+        full_prompt = f"{system_prompt}\n\nContext:\n{context_str}\n\nQuestion: {query}\n\nAnswer:"
+
+        # Step 6: Stream LLM tokens (no citation compliance check for streaming)
+        logger.info("Streaming answer with LLM...")
+        for chunk in self.llm_client.generate_stream(full_prompt):
+            yield chunk
+
+        # Step 7: Yield done message with citations
+        citations_data = [c.model_dump() for c in citations]
+        yield {"type": "done", "citations": citations_data, "used_chunk_ids": used_chunk_ids}

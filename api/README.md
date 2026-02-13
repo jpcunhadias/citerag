@@ -74,6 +74,12 @@ Execute the full RAG pipeline: search, rerank, build context, and generate answe
 
 **Note:** `context_used` is only included if `debug: true` in the request.
 
+### Ask Stream (RAG Pipeline with Streaming)
+
+**POST** `/api/ask/stream`
+
+Execute the RAG pipeline and stream LLM tokens as NDJSON. Same request body as `/api/ask` (except `debug` is ignored). Each line is JSON: `{"type": "token", "content": "..."}` or `{"type": "done", "citations": [...], "used_chunk_ids": [...]}`.
+
 ### Search
 
 **POST** `/api/search`

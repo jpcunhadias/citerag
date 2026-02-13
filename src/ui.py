@@ -103,6 +103,7 @@ def render() -> None:
         top_k = st.slider("Top-K (Initial Results)", min_value=10, max_value=100, value=25, step=5)
         top_n = st.slider("Top-N (Reranked Results)", min_value=1, max_value=10, value=5, step=1)
         use_reranker = st.checkbox("Use Reranker", value=True)
+        stream_response = st.checkbox("Stream response", value=True)
         debug_mode = st.checkbox("Debug Mode", value=False)
 
         # Clear Chat Button
@@ -157,44 +158,88 @@ def render() -> None:
 
         # Process query
         try:
-            # Show spinner and call API
-            with st.spinner("Thinking..."):
-                response = api_client.ask(
-                    query=query,
-                    collection=collection_name,
-                    top_k=top_k,
-                    top_n=top_n,
-                    rerank=use_reranker,
-                    debug=debug_mode,
-                )
+            if stream_response:
+                # Streaming path
+                with st.spinner("Searching..."):
+                    stream_result = api_client.ask_stream(
+                        query=query,
+                        collection=collection_name,
+                        top_k=top_k,
+                        top_n=top_n,
+                        rerank=use_reranker,
+                    )
 
-            # Display assistant response
-            with st.chat_message("assistant"):
-                st.markdown(response.answer)
+                with st.chat_message("assistant"):
+                    full_answer = st.write_stream(stream_result)
 
-                # Append assistant message to state (just the answer)
-                st.session_state.messages.append({"role": "assistant", "content": response.answer})
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": full_answer}
+                    )
 
-                # Store response metadata in session state for persistence
-                response_key = f"response_{len(st.session_state.messages) - 1}"
-                st.session_state[response_key] = {
-                    "citations": response.citations,
-                    "context_used": response.context_used,
-                    "debug_mode": debug_mode,
-                }
+                    response_key = f"response_{len(st.session_state.messages) - 1}"
+                    st.session_state[response_key] = {
+                        "citations": stream_result.citations,
+                        "context_used": None,
+                        "debug_mode": debug_mode,
+                    }
 
-                # Sources Widget
-                if response.answer != RAG_REFUSAL_MESSAGE and response.citations:
-                    with st.expander("📚 Sources Used"):
-                        # Create DataFrame from citations
-                        citations_data = build_citations_data(response.citations)
-                        df = pd.DataFrame(citations_data)
-                        st.dataframe(df, width="stretch")
+                    if (
+                        full_answer != RAG_REFUSAL_MESSAGE
+                        and stream_result.citations
+                    ):
+                        with st.expander("📚 Sources Used"):
+                            citations_data = build_citations_data(
+                                stream_result.citations
+                            )
+                            df = pd.DataFrame(citations_data)
+                            st.dataframe(df, width="stretch")
 
-                # Debug Widget
-                if debug_mode and response.context_used:
-                    with st.expander("🔍 Debug Context"):
-                        st.code(response.context_used, language=None)
+                    if debug_mode and stream_result.used_chunk_ids:
+                        with st.expander("🔍 Debug"):
+                            st.code(
+                                f"Used {len(stream_result.used_chunk_ids)} chunks",
+                                language=None,
+                            )
+            else:
+                # Non-streaming path
+                with st.spinner("Thinking..."):
+                    response = api_client.ask(
+                        query=query,
+                        collection=collection_name,
+                        top_k=top_k,
+                        top_n=top_n,
+                        rerank=use_reranker,
+                        debug=debug_mode,
+                    )
+
+                with st.chat_message("assistant"):
+                    st.markdown(response.answer)
+
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": response.answer}
+                    )
+
+                    response_key = f"response_{len(st.session_state.messages) - 1}"
+                    st.session_state[response_key] = {
+                        "citations": response.citations,
+                        "context_used": response.context_used,
+                        "debug_mode": debug_mode,
+                    }
+
+                    if (
+                        response.answer != RAG_REFUSAL_MESSAGE
+                        and response.citations
+                    ):
+                        with st.expander("📚 Sources Used"):
+                            citations_data = build_citations_data(
+                                response.citations
+                            )
+                            df = pd.DataFrame(citations_data)
+                            st.dataframe(df, width="stretch")
+
+                    if debug_mode and response.context_used:
+                        with st.expander("🔍 Debug Context"):
+                            st.code(response.context_used, language=None)
 
         except APIClientError as e:
             # Extract user-friendly message

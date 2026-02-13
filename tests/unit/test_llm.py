@@ -157,3 +157,69 @@ class TestOllamaClient:
 
         # Check that original exception is preserved
         assert exc_info.value.__cause__ == original_error
+
+    @patch("src.llm.requests.post")
+    @patch("src.llm.OLLAMA_BASE_URL", "http://localhost:11434")
+    @patch("src.llm.OLLAMA_MODEL_NAME", "llama3")
+    def test_generate_stream_yields_tokens_from_ndjson(self, mock_post):
+        """Test that generate_stream yields token chunks from NDJSON lines."""
+        ndjson_lines = [
+            '{"response": "Hello", "done": false}',
+            '{"response": " ", "done": false}',
+            '{"response": "world", "done": false}',
+            '{"response": "!", "done": true}',
+        ]
+
+        def iter_lines_fn(**kwargs):
+            return iter(ndjson_lines)
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.iter_lines = MagicMock(side_effect=iter_lines_fn)
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_post.return_value = mock_response
+
+        client = OllamaClient()
+        tokens = list(client.generate_stream("test prompt"))
+
+        assert tokens == ["Hello", " ", "world", "!"]
+        mock_post.assert_called_once()
+        call_kwargs = mock_post.call_args[1]
+        assert call_kwargs["json"]["stream"] is True
+
+    @patch("src.llm.requests.post")
+    @patch("src.llm.OLLAMA_BASE_URL", "http://localhost:11434")
+    @patch("src.llm.OLLAMA_MODEL_NAME", "llama3")
+    def test_generate_stream_skips_empty_lines(self, mock_post):
+        """Test that generate_stream skips empty lines."""
+        ndjson_lines = [
+            "",
+            '{"response": "Hi", "done": false}',
+            "",
+            '{"response": "", "done": false}',
+            '{"response": "there", "done": true}',
+        ]
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.iter_lines = MagicMock(return_value=iter(ndjson_lines))
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_post.return_value = mock_response
+
+        client = OllamaClient()
+        tokens = list(client.generate_stream("test"))
+
+        assert tokens == ["Hi", "there"]
+
+    @patch("src.llm.requests.post")
+    @patch("src.llm.OLLAMA_BASE_URL", "http://localhost:11434")
+    @patch("src.llm.OLLAMA_MODEL_NAME", "llama3")
+    def test_generate_stream_raises_on_connection_error(self, mock_post):
+        """Test that generate_stream raises OllamaConnectionError on connection failure."""
+        mock_post.side_effect = requests.exceptions.ConnectionError("Connection refused")
+
+        client = OllamaClient()
+
+        with pytest.raises(OllamaConnectionError):
+            list(client.generate_stream("test"))
