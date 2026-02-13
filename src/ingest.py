@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+from tqdm import tqdm
 from FlagEmbedding import BGEM3FlagModel
 from langchain_core.documents import Document
 from langchain_text_splitters import (
@@ -295,12 +296,15 @@ class VectorService:
         self.model = BGEM3FlagModel(model_name_or_path=EMBEDDING_MODEL_NAME, use_fp16=use_fp16)
         self._dense_dimension: Optional[int] = None
 
-    def embed_documents(self, texts: list[str]) -> tuple[np.ndarray, list[dict[int, float]], int]:
+    def embed_documents(
+        self, texts: list[str], show_progress: bool = True
+    ) -> tuple[np.ndarray, list[dict[int, float]], int]:
         """
         Generate dense and sparse embeddings for documents.
 
         Args:
             texts: List of text strings to embed.
+            show_progress: Whether to display a progress bar (default True).
 
         Returns:
             Tuple of (dense_vectors, sparse_vectors, dense_dimension):
@@ -313,8 +317,12 @@ class VectorService:
         all_dense: list[np.ndarray] = []
         all_sparse: list[dict[int, float]] = []
 
+        batch_range = range(0, len(texts), self.batch_size)
+        if show_progress:
+            batch_range = tqdm(batch_range, desc="Embedding", unit="batch")
+
         # Process in batches
-        for i in range(0, len(texts), self.batch_size):
+        for i in batch_range:
             batch_texts = texts[i : i + self.batch_size]
             logger.debug(f"Processing batch {i // self.batch_size + 1} ({len(batch_texts)} texts)")
 
@@ -459,7 +467,10 @@ class VectorService:
 
 
 def index_to_qdrant(
-    chunks: list[DocumentChunk], collection_name: str, dense_dimension: int
+    chunks: list[DocumentChunk],
+    collection_name: str,
+    dense_dimension: int,
+    show_progress: bool = True,
 ) -> None:
     """
     Upsert chunks with embeddings to Qdrant.
@@ -468,6 +479,7 @@ def index_to_qdrant(
         chunks: List of DocumentChunk objects with embeddings.
         collection_name: Name of the Qdrant collection.
         dense_dimension: Dimension of dense vectors (inferred from model).
+        show_progress: Whether to display a progress bar (default True).
     """
     logger.info(f"Indexing {len(chunks)} chunks to Qdrant collection '{collection_name}'")
 
@@ -535,7 +547,10 @@ def index_to_qdrant(
 
     # Batch upsert
     batch_size = 100
-    for i in range(0, len(points), batch_size):
+    upsert_range = range(0, len(points), batch_size)
+    if show_progress:
+        upsert_range = tqdm(upsert_range, desc="Indexing", unit="batch")
+    for i in upsert_range:
         batch = points[i : i + batch_size]
         client.upsert(collection_name=collection_name, points=batch, wait=True)
         logger.debug(f"Upserted batch {i // batch_size + 1} ({len(batch)} points)")
@@ -549,6 +564,7 @@ def ingest_documents(
     library: Optional[str] = None,
     version: Optional[str] = None,
     batch_size: int = EMBEDDING_BATCH_SIZE,
+    show_progress: bool = True,
 ) -> None:
     """
     Complete ingestion pipeline: load, clean, chunk, embed, and index.
@@ -559,6 +575,7 @@ def ingest_documents(
         library: Optional library name for metadata.
         version: Optional library version for metadata.
         batch_size: Batch size for embedding generation.
+        show_progress: Whether to display progress bars for embedding and indexing (default True).
     """
     logger.info(f"Starting ingestion pipeline for {docs_path}")
     input_root = docs_path.resolve()
@@ -588,7 +605,9 @@ def ingest_documents(
     logger.info("Step 4: Generating embeddings")
     vector_service = VectorService(batch_size=batch_size)
     texts = [chunk.text for chunk in chunks]
-    dense_vectors, sparse_vectors, dense_dimension = vector_service.embed_documents(texts)
+    dense_vectors, sparse_vectors, dense_dimension = vector_service.embed_documents(
+        texts, show_progress=show_progress
+    )
 
     # Step 5: Attach vectors to chunks
     logger.info("Step 5: Attaching vectors to chunks")
@@ -598,6 +617,11 @@ def ingest_documents(
 
     # Step 6: Index to Qdrant
     logger.info("Step 6: Indexing to Qdrant")
-    index_to_qdrant(chunks, collection_name=collection_name, dense_dimension=dense_dimension)
+    index_to_qdrant(
+        chunks,
+        collection_name=collection_name,
+        dense_dimension=dense_dimension,
+        show_progress=show_progress,
+    )
 
     logger.info("Ingestion pipeline completed successfully")
