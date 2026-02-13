@@ -1,7 +1,8 @@
 """LLM client for Ollama API."""
 
+import json
 import logging
-from typing import Optional
+from typing import Iterator, Optional
 
 import requests
 from requests.exceptions import RequestException
@@ -67,6 +68,54 @@ class OllamaClient:
                 logger.error(error_msg)
                 raise OllamaConnectionError(error_msg)
             return result["response"]
+        except RequestException as e:
+            error_msg = (
+                f"Failed to connect to Ollama at {self.base_url}. "
+                f"Is Ollama running? Original error: {str(e)}"
+            )
+            logger.error(error_msg)
+            raise OllamaConnectionError(error_msg) from e
+
+    def generate_stream(self, prompt: str) -> Iterator[str]:
+        """
+        Stream text response from Ollama (NDJSON format).
+
+        Args:
+            prompt: Prompt text to send to the model.
+
+        Yields:
+            Token chunks from the "response" field of each NDJSON line.
+
+        Raises:
+            OllamaConnectionError: If connection to Ollama fails.
+        """
+        url = f"{self.base_url}/api/generate"
+        payload = {
+            "model": self.model_name,
+            "prompt": prompt,
+            "stream": True,
+        }
+
+        try:
+            logger.info(f"Sending streaming request to Ollama: {url}")
+            with requests.post(url, json=payload, stream=True, timeout=300) as response:
+                response.raise_for_status()
+
+                for line in response.iter_lines(decode_unicode=True):
+                    if not line:
+                        continue
+                    try:
+                        obj = json.loads(line)
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"Skipping malformed NDJSON line: {e}")
+                        continue
+
+                    if "response" in obj and obj["response"]:
+                        yield obj["response"]
+
+                    if obj.get("done"):
+                        break
+
         except RequestException as e:
             error_msg = (
                 f"Failed to connect to Ollama at {self.base_url}. "
