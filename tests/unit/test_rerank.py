@@ -289,6 +289,6 @@ class TestRerankerService:
         mock_reranker.compute_score.assert_called_once()
         call_args = mock_reranker.compute_score.call_args[0][0]
         assert len(call_args) == 3
-        assert call_args[0] == [query, sample_results[0].text]
-        assert call_args[1] == [query, sample_results[1].text]
-        assert call_args[2] == [query, sample_results[2].text]
+        assert call_args[0] == (query, sample_results[0].text)
+        assert call_args[1] == (query, sample_results[1].text)
+        assert call_args[2] == (query, sample_results[2].text)
