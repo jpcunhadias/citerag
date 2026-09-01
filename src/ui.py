@@ -110,7 +110,11 @@ def render() -> None:
         if st.button("Clear Chat"):
             st.session_state["messages"] = []
             # Clear response metadata
-            keys_to_remove = [k for k in st.session_state.keys() if k.startswith("response_")]
+            keys_to_remove = [
+                k
+                for k in st.session_state.keys()
+                if isinstance(k, str) and k.startswith("response_")
+            ]
             for k in keys_to_remove:
                 del st.session_state[k]
             st.rerun()

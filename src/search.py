@@ -5,6 +5,7 @@ import logging
 import numpy as np
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
+    Condition,
     FieldCondition,
     Filter,
     MatchValue,
@@ -142,7 +143,7 @@ class SearchService:
                         f"Invalid filter key: '{key}'. Allowed keys are: {allowed_keys}"
                     )
 
-            filter_conditions = []
+            filter_conditions: list[Condition] = []
             if "library" in filters and filters["library"] is not None:
                 filter_conditions.append(
                     FieldCondition(key="library", match=MatchValue(value=filters["library"]))

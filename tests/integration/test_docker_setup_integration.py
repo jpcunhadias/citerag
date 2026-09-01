@@ -39,9 +39,7 @@ def test_api_collections(base_url: str = "http://localhost:8000") -> bool:
         return False
 
 
-def test_api_search(
-    base_url: str = "http://localhost:8000", collection: str | None = None
-) -> bool:
+def test_api_search(base_url: str = "http://localhost:8000", collection: str | None = None) -> bool:
     """Test API search endpoint."""
     print("\nTesting API search endpoint...")
     if not collection:
