@@ -1,6 +1,5 @@
 """Pydantic models for FastAPI request/response schemas."""
 
-
 from pydantic import BaseModel, Field
 
 from src.models import Citation, SearchResult

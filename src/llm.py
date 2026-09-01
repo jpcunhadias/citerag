@@ -48,7 +48,7 @@ class OllamaClient:
             OllamaConnectionError: If connection to Ollama fails.
         """
         url = f"{self.base_url}/api/generate"
-        payload = {
+        payload: dict[str, str | bool] = {
             "model": self.model_name,
             "prompt": prompt,
             "stream": False,
@@ -90,7 +90,7 @@ class OllamaClient:
             OllamaConnectionError: If connection to Ollama fails.
         """
         url = f"{self.base_url}/api/generate"
-        payload = {
+        payload: dict[str, str | bool] = {
             "model": self.model_name,
             "prompt": prompt,
             "stream": True,
