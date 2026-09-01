@@ -84,9 +84,9 @@ class TestGetCollections:
 
         # Now test the actual function - should execute fresh due to cache patch
         collections = get_collections(error_mock)
-        assert (
-            collections == FALLBACK_COLLECTIONS
-        ), f"Expected {FALLBACK_COLLECTIONS}, got {collections}"
+        assert collections == FALLBACK_COLLECTIONS, (
+            f"Expected {FALLBACK_COLLECTIONS}, got {collections}"
+        )
         mock_logger.error.assert_called_once()
 
 

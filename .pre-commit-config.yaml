@@ -12,21 +12,10 @@ repos:
       - id: check-merge-conflict
       - id: check-case-conflict
 
-  # Black code formatter
-  - repo: https://github.com/psf/black
-    rev: 24.1.1
-    hooks:
-      - id: black
-        language_version: python3
-        args: ['--line-length=100']
-
   # Ruff linter and formatter
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.15
+    rev: v0.16.4
     hooks:
-      # Run ruff to catch errors and auto-fix
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
-      # Run ruff format (optional, if you want ruff's formatter instead of black)
-      # Uncomment if you prefer ruff format over black
-      # - id: ruff-format
+      - id: ruff-format

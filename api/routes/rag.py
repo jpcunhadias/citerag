@@ -85,6 +85,7 @@ async def ask_stream(request: AskRequest) -> StreamingResponse:
     Each line is JSON: {"type": "token", "content": "..."} or
     {"type": "done", "citations": [...], "used_chunk_ids": [...]}.
     """
+
     def run_stream(q: queue.Queue) -> None:
         try:
             search_service = get_search_service()

@@ -1,24 +1,45 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "rag-ds-docsearcher"
 version = "0.1.0"
 description = "RAG-based documentation search system"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
+dependencies = [
+    "qdrant-client==1.16.2",
+    "torch>=2.0.0",
+    "sentence-transformers>=2.2.0",
+    "langchain>=0.1.0",
+    "langchain-community>=0.0.20",
+    "langchain-text-splitters>=0.0.1",
+    "streamlit>=1.28.0",
+    "pydantic>=2.0.0",
+    "FlagEmbedding>=1.2.0",
+    "transformers>=4.56.0",  # FlagEmbedding>=1.4 passes dtype= to from_pretrained, needs transformers>=4.56
+    "httpx>=0.25.0",
+    "requests>=2.31.0",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=4.9.0",
+    "markdown>=3.4.0",
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "tqdm>=4.65.0",
+]
 
-[tool.black]
-line-length = 100
-target-version = ['py39']
-include = '\.pyi?$'
+[dependency-groups]
+dev = [
+    "ruff>=0.1.0",
+    "mypy>=1.10",
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pre-commit>=3.0.0",
+]
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP"]
+select = ["E", "F", "I", "UP", "B"]
 ignore = []
 
 [tool.ruff.lint.per-file-ignores]
@@ -26,8 +47,18 @@ ignore = []
 "scripts/*.py" = ["E402"]  # Allow imports after sys.path manipulation
 "tests/integration/test_smoke_ask.py" = ["E402"]  # Allow imports after sys.path manipulation
 
+[tool.mypy]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
     "integration: tests that require external services (e.g., Qdrant, Ollama, FastAPI)",
 ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src", "api"]

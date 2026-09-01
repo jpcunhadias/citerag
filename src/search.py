@@ -1,7 +1,6 @@
 """Search and retrieval logic: hybrid search, re-ranking, and RAG generation."""
 
 import logging
-from typing import Optional
 
 import numpy as np
 from qdrant_client import QdrantClient
@@ -12,7 +11,6 @@ from qdrant_client.models import (
     ScoredPoint,
 )
 
-from src.config import QDRANT_HOST, QDRANT_PORT
 from src.ingest import VectorService
 from src.models import SearchResult
 from src.utils.qdrant import (
@@ -105,7 +103,7 @@ class SearchService:
         query: str,
         collection: str,
         top_k: int = 25,
-        filters: Optional[dict] = None,
+        filters: dict | None = None,
     ) -> list[SearchResult]:
         """
         Perform hybrid search using dense and sparse vectors with fusion.

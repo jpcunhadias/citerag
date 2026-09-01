@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Iterator, Optional
+from collections.abc import Iterator
 
 import httpx
 
@@ -43,7 +43,7 @@ class APIClientError(Exception):
 class APIClient:
     """Client for making HTTP requests to FastAPI backend."""
 
-    def __init__(self, base_url: Optional[str] = None):
+    def __init__(self, base_url: str | None = None):
         """
         Initialize APIClient.
 
@@ -172,15 +172,11 @@ class APIClient:
                                 if content:
                                     yield content
                             elif obj.get("type") == "done":
-                                citations.extend(
-                                    [Citation(**c) for c in obj.get("citations", [])]
-                                )
+                                citations.extend([Citation(**c) for c in obj.get("citations", [])])
                                 used_chunk_ids.extend(obj.get("used_chunk_ids", []))
                                 return
                             elif obj.get("type") == "error":
-                                raise APIClientError(
-                                    obj.get("detail", "Stream error")
-                                )
+                                raise APIClientError(obj.get("detail", "Stream error"))
             except httpx.HTTPStatusError as e:
                 raise APIClientError(
                     f"API request failed: {e.response.status_code} {e.response.text}"
@@ -197,7 +193,7 @@ class APIClient:
         query: str,
         collection: str,
         top_k: int = 5,
-        filters: Optional[dict[str, str]] = None,
+        filters: dict[str, str] | None = None,
     ) -> list[SearchResult]:
         """
         Perform hybrid search via API.

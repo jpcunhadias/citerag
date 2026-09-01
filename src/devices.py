@@ -1,7 +1,6 @@
 """Device management utilities for CUDA/CPU selection."""
 
 import logging
-from typing import Optional
 
 import torch
 
@@ -10,7 +9,7 @@ from src.config import DeviceType
 logger = logging.getLogger(__name__)
 
 
-def get_device(device_preference: Optional[DeviceType] = None) -> torch.device:
+def get_device(device_preference: DeviceType | None = None) -> torch.device:
     """
     Determine the best available device for model inference.
 
@@ -33,7 +32,7 @@ def get_device(device_preference: Optional[DeviceType] = None) -> torch.device:
         return torch.device("cpu")
 
 
-def get_free_vram_gb() -> Optional[float]:
+def get_free_vram_gb() -> float | None:
     """
     Get free VRAM in GB if CUDA is available.
 

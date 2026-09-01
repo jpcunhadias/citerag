@@ -28,7 +28,7 @@ def wait_for_api(max_retries=10, delay=2):
                     return True
         except Exception:
             if i < max_retries - 1:
-                print(f"  Retry {i+1}/{max_retries}...")
+                print(f"  Retry {i + 1}/{max_retries}...")
                 time.sleep(delay)
             else:
                 print(f"[FAIL] API not available after {max_retries} retries")

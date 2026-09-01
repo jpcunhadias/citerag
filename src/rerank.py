@@ -62,7 +62,7 @@ class RerankerService:
             scores = [scores]
 
         # Update each SearchResult.score in place with the new reranker score
-        for result, score in zip(results, scores):
+        for result, score in zip(results, scores, strict=True):
             result.score = float(score)
 
         # Sort by score descending
