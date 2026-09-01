@@ -1,6 +1,7 @@
 """Unit tests for the ingestion pipeline."""
 
 import hashlib
+import uuid
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -10,7 +11,11 @@ from qdrant_client.models import SparseVector
 from src.config import CHUNK_OVERLAP, CHUNK_SIZE, CHUNKER_FINGERPRINT
 from src.ingest import (
     chunk_documents,
+    chunk_id_to_point_id,
     clean_text,
+    delete_chunks,
+    get_chunk_ids_outside_sources,
+    get_existing_chunk_ids_by_source,
     load_documents,
 )
 from src.models import (
@@ -19,6 +24,22 @@ from src.models import (
     normalize_text_for_hashing,
 )
 from src.utils.qdrant import convert_sparse_dict_to_qdrant_sparsevector
+
+
+def make_point(chunk_id: str, canonical_source_id: str) -> MagicMock:
+    """Build a mock Qdrant Record with just the payload fields we read."""
+    point = MagicMock()
+    point.payload = {"chunk_id": chunk_id, "canonical_source_id": canonical_source_id}
+    return point
+
+
+def make_collections_response(names: list[str]) -> MagicMock:
+    """Build a mock get_collections() response listing the given collection names."""
+    response = MagicMock()
+    response.collections = [MagicMock(name=n) for n in names]
+    for col, name in zip(response.collections, names, strict=True):
+        col.name = name
+    return response
 
 
 class TestChunkIDGeneration:
@@ -378,3 +399,124 @@ class TestVectorService:
         assert sparse is not None
         assert len(sparse) == 1
         assert isinstance(sparse[0], dict)
+
+
+class TestChunkIdToPointId:
+    """Tests for chunk_id_to_point_id."""
+
+    def test_deterministic(self):
+        """Same chunk_id always maps to the same point ID."""
+        chunk_id = hashlib.sha256(b"some chunk text").hexdigest()
+
+        assert chunk_id_to_point_id(chunk_id) == chunk_id_to_point_id(chunk_id)
+
+    def test_different_chunk_ids_map_to_different_points(self):
+        """Different chunk_ids map to different point IDs."""
+        id1 = hashlib.sha256(b"chunk one").hexdigest()
+        id2 = hashlib.sha256(b"chunk two").hexdigest()
+
+        assert chunk_id_to_point_id(id1) != chunk_id_to_point_id(id2)
+
+    def test_returns_uuid(self):
+        chunk_id = hashlib.sha256(b"some chunk text").hexdigest()
+        assert isinstance(chunk_id_to_point_id(chunk_id), uuid.UUID)
+
+
+class TestGetExistingChunkIdsBySource:
+    """Tests for get_existing_chunk_ids_by_source."""
+
+    def test_empty_source_ids_returns_empty(self):
+        client = MagicMock()
+
+        result = get_existing_chunk_ids_by_source(client, "docs", set())
+
+        assert result == {}
+        client.get_collections.assert_not_called()
+
+    def test_collection_does_not_exist_returns_empty_sets(self):
+        client = MagicMock()
+        client.get_collections.return_value = make_collections_response(["other_collection"])
+
+        result = get_existing_chunk_ids_by_source(client, "docs", {"a.md", "b.md"})
+
+        assert result == {"a.md": set(), "b.md": set()}
+        client.scroll.assert_not_called()
+
+    def test_groups_chunk_ids_by_source(self):
+        client = MagicMock()
+        client.get_collections.return_value = make_collections_response(["docs"])
+        client.scroll.return_value = (
+            [
+                make_point("chunk1", "a.md"),
+                make_point("chunk2", "a.md"),
+                make_point("chunk3", "b.md"),
+            ],
+            None,
+        )
+
+        result = get_existing_chunk_ids_by_source(client, "docs", {"a.md", "b.md"})
+
+        assert result == {"a.md": {"chunk1", "chunk2"}, "b.md": {"chunk3"}}
+
+    def test_paginates_until_offset_is_none(self):
+        client = MagicMock()
+        client.get_collections.return_value = make_collections_response(["docs"])
+        client.scroll.side_effect = [
+            ([make_point("chunk1", "a.md")], "next-offset"),
+            ([make_point("chunk2", "a.md")], None),
+        ]
+
+        result = get_existing_chunk_ids_by_source(client, "docs", {"a.md"})
+
+        assert result == {"a.md": {"chunk1", "chunk2"}}
+        assert client.scroll.call_count == 2
+
+
+class TestGetChunkIdsOutsideSources:
+    """Tests for get_chunk_ids_outside_sources."""
+
+    def test_collection_does_not_exist_returns_empty(self):
+        client = MagicMock()
+        client.get_collections.return_value = make_collections_response([])
+
+        result = get_chunk_ids_outside_sources(client, "docs", {"a.md"})
+
+        assert result == set()
+        client.scroll.assert_not_called()
+
+    def test_finds_chunks_for_removed_sources(self):
+        client = MagicMock()
+        client.get_collections.return_value = make_collections_response(["docs"])
+        client.scroll.return_value = (
+            [
+                make_point("chunk1", "a.md"),  # still on disk
+                make_point("chunk2", "removed.md"),  # deleted from disk
+            ],
+            None,
+        )
+
+        result = get_chunk_ids_outside_sources(client, "docs", {"a.md"})
+
+        assert result == {"chunk2"}
+
+
+class TestDeleteChunks:
+    """Tests for delete_chunks."""
+
+    def test_empty_chunk_ids_does_not_call_delete(self):
+        client = MagicMock()
+
+        delete_chunks(client, "docs", set())
+
+        client.delete.assert_not_called()
+
+    def test_deletes_by_point_id(self):
+        client = MagicMock()
+        chunk_id = hashlib.sha256(b"stale chunk").hexdigest()
+
+        delete_chunks(client, "docs", {chunk_id})
+
+        client.delete.assert_called_once()
+        call_kwargs = client.delete.call_args.kwargs
+        assert call_kwargs["collection_name"] == "docs"
+        assert call_kwargs["points_selector"] == [chunk_id_to_point_id(chunk_id)]
