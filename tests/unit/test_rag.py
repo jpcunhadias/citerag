@@ -181,8 +181,11 @@ class TestRAGService:
             debug=False,
         )
 
-        # Should be replaced with refusal
+        # Should be replaced with refusal, and citations/used_chunk_ids
+        # cleared — nothing was actually used to produce a refusal
         assert response.answer == "I couldn't find this in the indexed documentation."
+        assert response.citations == []
+        assert response.used_chunk_ids == []
 
     def test_ask_allows_answer_with_citations(
         self, rag_service, mock_search_service, mock_llm_client, sample_search_results
@@ -222,8 +225,10 @@ class TestRAGService:
             debug=False,
         )
 
-        # Should keep the refusal string
+        # Should keep the refusal string, with no citations
         assert response.answer == refusal
+        assert response.citations == []
+        assert response.used_chunk_ids == []
 
     def test_ask_includes_context_used_in_debug_mode(
         self, rag_service, mock_search_service, mock_llm_client, sample_search_results
