@@ -81,6 +81,7 @@ def test_ask_success(monkeypatch):
                 score=0.9,
             )
         ],
+        context_used=None,
         used_chunk_ids=["test_chunk"],
     )
     mock_rag_service.ask.return_value = mock_rag_response

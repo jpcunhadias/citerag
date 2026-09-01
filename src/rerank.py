@@ -50,7 +50,7 @@ class RerankerService:
         logger.info(f"Reranking {len(results)} results for query: '{query[:50]}...'")
 
         # Create query-document pairs using the existing text field
-        pairs = [[query, result.text] for result in results]
+        pairs = [(query, result.text) for result in results]
 
         # Compute reranker scores
         scores = self.reranker.compute_score(pairs)
