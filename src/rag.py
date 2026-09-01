@@ -163,12 +163,15 @@ class RAGService:
                 )
                 answer = RAG_REFUSAL_MESSAGE
 
-        # Step 8: Return RAGResponse
+        # Step 8: Return RAGResponse. A refusal answer — whether the LLM said
+        # it directly or the compliance check above forced it — should carry
+        # no citations, since nothing was actually used to produce it.
+        is_refusal = answer.strip() == RAG_REFUSAL_MESSAGE
         return RAGResponse(
             answer=answer,
-            citations=citations,
+            citations=[] if is_refusal else citations,
             context_used=context_str if debug else None,
-            used_chunk_ids=used_chunk_ids,
+            used_chunk_ids=[] if is_refusal else used_chunk_ids,
         )
 
     def ask_stream(
