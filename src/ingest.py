@@ -15,6 +15,9 @@ from langchain_text_splitters import (
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
+    FieldCondition,
+    Filter,
+    MatchAny,
     PointStruct,
     SparseVectorParams,
     VectorParams,
@@ -465,6 +468,148 @@ class VectorService:
         return dense_vec, sparse_vec
 
 
+def chunk_id_to_point_id(chunk_id: str) -> uuid.UUID:
+    """
+    Convert a chunk_id (hex string) to a Qdrant-compatible point ID.
+
+    Qdrant requires point IDs to be UUIDs or unsigned integers, so we parse
+    the first 32 hex characters (128 bits) of the chunk_id hash directly as
+    a UUID. This is deterministic: the same chunk_id always maps to the same
+    point ID, which is what makes upsert/delete idempotent.
+
+    Args:
+        chunk_id: Hex string chunk ID (sha256 hexdigest or prefix of one).
+
+    Returns:
+        UUID derived from the first 32 hex characters of chunk_id.
+    """
+    return uuid.UUID(hex=chunk_id[:32])
+
+
+def get_existing_chunk_ids_by_source(
+    client: QdrantClient,
+    collection_name: str,
+    canonical_source_ids: set[str],
+) -> dict[str, set[str]]:
+    """
+    Fetch chunk_ids already indexed in Qdrant for the given source files.
+
+    Used to skip re-embedding chunks that are already indexed (same source,
+    same text) and to detect stale chunks left behind when a file's content
+    changes and its chunk boundaries shift.
+
+    Args:
+        client: Qdrant client.
+        collection_name: Name of the Qdrant collection.
+        canonical_source_ids: Source IDs to look up.
+
+    Returns:
+        Mapping of canonical_source_id to the set of chunk_ids currently
+        indexed for it. Sources with nothing indexed map to an empty set.
+    """
+    existing: dict[str, set[str]] = {source_id: set() for source_id in canonical_source_ids}
+    if not canonical_source_ids:
+        return existing
+
+    collections = client.get_collections().collections
+    if not any(col.name == collection_name for col in collections):
+        return existing
+
+    scroll_filter = Filter(
+        must=[
+            FieldCondition(
+                key="canonical_source_id",
+                match=MatchAny(any=list(canonical_source_ids)),
+            )
+        ]
+    )
+
+    offset = None
+    while True:
+        points, offset = client.scroll(
+            collection_name=collection_name,
+            scroll_filter=scroll_filter,
+            with_payload=["chunk_id", "canonical_source_id"],
+            with_vectors=False,
+            limit=500,
+            offset=offset,
+        )
+        for point in points:
+            payload = point.payload or {}
+            source_id = payload.get("canonical_source_id")
+            chunk_id = payload.get("chunk_id")
+            if source_id in existing and chunk_id:
+                existing[source_id].add(chunk_id)
+        if offset is None:
+            break
+
+    return existing
+
+
+def get_chunk_ids_outside_sources(
+    client: QdrantClient,
+    collection_name: str,
+    current_source_ids: set[str],
+) -> set[str]:
+    """
+    Find chunk_ids indexed in Qdrant whose source file no longer exists.
+
+    Scans the whole collection, so this is only cheap for small/medium
+    collections; used by --prune-missing to garbage-collect files that were
+    deleted from disk between ingestion runs.
+
+    Args:
+        client: Qdrant client.
+        collection_name: Name of the Qdrant collection.
+        current_source_ids: canonical_source_ids currently present on disk.
+
+    Returns:
+        Set of chunk_ids whose canonical_source_id is not in
+        current_source_ids.
+    """
+    collections = client.get_collections().collections
+    if not any(col.name == collection_name for col in collections):
+        return set()
+
+    stale: set[str] = set()
+    offset = None
+    while True:
+        points, offset = client.scroll(
+            collection_name=collection_name,
+            with_payload=["chunk_id", "canonical_source_id"],
+            with_vectors=False,
+            limit=500,
+            offset=offset,
+        )
+        for point in points:
+            payload = point.payload or {}
+            source_id = payload.get("canonical_source_id")
+            chunk_id = payload.get("chunk_id")
+            if chunk_id and source_id not in current_source_ids:
+                stale.add(chunk_id)
+        if offset is None:
+            break
+
+    return stale
+
+
+def delete_chunks(client: QdrantClient, collection_name: str, chunk_ids: set[str]) -> None:
+    """
+    Delete points from Qdrant by their original chunk_id.
+
+    Args:
+        client: Qdrant client.
+        collection_name: Name of the Qdrant collection.
+        chunk_ids: chunk_ids (hex strings) to delete.
+    """
+    if not chunk_ids:
+        return
+
+    point_ids: list[int | str | uuid.UUID] = [chunk_id_to_point_id(cid) for cid in chunk_ids]
+    logger.info(f"Deleting {len(point_ids)} stale point(s) from '{collection_name}'")
+    client.delete(collection_name=collection_name, points_selector=point_ids)
+
+
 def index_to_qdrant(
     chunks: list[DocumentChunk],
     collection_name: str,
@@ -523,15 +668,9 @@ def index_to_qdrant(
         # Convert sparse vector to SparseVector object
         sparse_vec_obj = convert_sparse_dict_to_qdrant_sparsevector(chunk.sparse_vector)
 
-        # Convert chunk_id (hex string) to UUID for Qdrant compatibility
-        # Qdrant requires point IDs to be UUIDs or unsigned integers
-        # Parse first 32 hex characters (128 bits) directly as UUID
-        chunk_id_hex = chunk.chunk_id[:32]
-        point_id = uuid.UUID(hex=chunk_id_hex)
-
         # Create point
         point = PointStruct(
-            id=point_id,
+            id=chunk_id_to_point_id(chunk.chunk_id),
             vector={
                 DENSE_VECTOR_NAME: chunk.dense_vector,
                 SPARSE_VECTOR_NAME: sparse_vec_obj,
@@ -564,9 +703,19 @@ def ingest_documents(
     version: str | None = None,
     batch_size: int = EMBEDDING_BATCH_SIZE,
     show_progress: bool = True,
+    prune_missing: bool = False,
 ) -> None:
     """
-    Complete ingestion pipeline: load, clean, chunk, embed, and index.
+    Incremental ingestion pipeline: load, clean, chunk, diff, embed, and index.
+
+    chunk_id is a content hash (source + chunker config + text), so unchanged
+    chunks already indexed under this collection are skipped rather than
+    re-embedded, and chunks left behind by an edited file's shifted chunk
+    boundaries are deleted. Set prune_missing=True to also delete chunks for
+    files that no longer exist under docs_path at all — off by default since
+    it assumes this collection is populated exclusively from docs_path; a
+    collection aggregated from multiple --input directories would have
+    unrelated sources wrongly deleted.
 
     Args:
         docs_path: Path to directory containing documents (used as input root).
@@ -575,6 +724,7 @@ def ingest_documents(
         version: Optional library version for metadata.
         batch_size: Batch size for embedding generation.
         show_progress: Whether to display progress bars for embedding and indexing (default True).
+        prune_missing: Also delete chunks for files no longer present under docs_path.
     """
     logger.info(f"Starting ingestion pipeline for {docs_path}")
     input_root = docs_path.resolve()
@@ -600,27 +750,56 @@ def ingest_documents(
         logger.warning("No chunks created, exiting pipeline")
         return
 
-    # Step 4: Generate embeddings
-    logger.info("Step 4: Generating embeddings")
-    vector_service = VectorService(batch_size=batch_size)
-    texts = [chunk.text for chunk in chunks]
-    dense_vectors, sparse_vectors, dense_dimension = vector_service.embed_documents(
-        texts, show_progress=show_progress
+    # Step 4: Diff against what's already indexed for these sources
+    logger.info("Step 4: Checking for already-indexed chunks")
+    client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+    current_source_ids = {doc["canonical_source_id"] for doc in documents}
+    existing_by_source = get_existing_chunk_ids_by_source(
+        client, collection_name, current_source_ids
     )
+    existing_chunk_ids = {cid for ids in existing_by_source.values() for cid in ids}
+    current_chunk_ids = {chunk.chunk_id for chunk in chunks}
 
-    # Step 5: Attach vectors to chunks
-    logger.info("Step 5: Attaching vectors to chunks")
-    for i, chunk in enumerate(chunks):
-        chunk.dense_vector = dense_vectors[i].tolist()
-        chunk.sparse_vector = sparse_vectors[i]
+    new_chunks = [chunk for chunk in chunks if chunk.chunk_id not in existing_chunk_ids]
+    stale_chunk_ids = existing_chunk_ids - current_chunk_ids
 
-    # Step 6: Index to Qdrant
-    logger.info("Step 6: Indexing to Qdrant")
-    index_to_qdrant(
-        chunks,
-        collection_name=collection_name,
-        dense_dimension=dense_dimension,
-        show_progress=show_progress,
-    )
+    if prune_missing:
+        stale_chunk_ids |= get_chunk_ids_outside_sources(
+            client, collection_name, current_source_ids
+        )
+
+    skipped = len(chunks) - len(new_chunks)
+    if skipped:
+        logger.info(f"Skipping {skipped} chunk(s) already indexed and unchanged")
+
+    # Step 5: Generate embeddings for new/changed chunks only
+    if new_chunks:
+        logger.info(f"Step 5: Generating embeddings for {len(new_chunks)} new/changed chunk(s)")
+        vector_service = VectorService(batch_size=batch_size)
+        texts = [chunk.text for chunk in new_chunks]
+        dense_vectors, sparse_vectors, dense_dimension = vector_service.embed_documents(
+            texts, show_progress=show_progress
+        )
+
+        for i, chunk in enumerate(new_chunks):
+            chunk.dense_vector = dense_vectors[i].tolist()
+            chunk.sparse_vector = sparse_vectors[i]
+
+        # Step 6: Index to Qdrant
+        logger.info("Step 6: Indexing to Qdrant")
+        index_to_qdrant(
+            new_chunks,
+            collection_name=collection_name,
+            dense_dimension=dense_dimension,
+            show_progress=show_progress,
+        )
+    else:
+        logger.info("Nothing new to embed or index")
+
+    # Step 7: Clean up stale chunks (edited files' old boundaries, and
+    # removed files if prune_missing)
+    if stale_chunk_ids:
+        logger.info(f"Step 7: Removing {len(stale_chunk_ids)} stale chunk(s)")
+        delete_chunks(client, collection_name, stale_chunk_ids)
 
     logger.info("Ingestion pipeline completed successfully")

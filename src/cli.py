@@ -48,6 +48,7 @@ def ingest_command(args: argparse.Namespace) -> int:
             library=args.library,
             version=args.version,
             batch_size=args.batch_size,
+            prune_missing=args.prune_missing,
         )
         logger.info("Ingestion completed successfully")
         return 0
@@ -216,6 +217,15 @@ def main() -> int:
         type=int,
         default=EMBEDDING_BATCH_SIZE,
         help=f"Batch size for embedding generation (default: {EMBEDDING_BATCH_SIZE})",
+    )
+    ingest_parser.add_argument(
+        "--prune-missing",
+        action="store_true",
+        help=(
+            "Also delete chunks for files no longer present under --input. "
+            "Only safe if this collection is populated exclusively from this "
+            "--input directory (see ingest_documents docstring)."
+        ),
     )
 
     # Search command

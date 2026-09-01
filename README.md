@@ -225,6 +225,9 @@ Before you can search, you must index your documentation.
     - `--input`: Path to the directory containing your documents.
     - `--collection`: A unique name for the Qdrant collection.
     - `--library`, `--version`: (Optional) Metadata tags.
+    - `--prune-missing`: (Optional) Also delete chunks for files no longer
+      present under `--input`. Off by default. Only safe if this collection
+      is populated exclusively from this `--input` directory — see below.
 
     **Example:**
     ```bash
@@ -234,6 +237,15 @@ Before you can search, you must index your documentation.
       --collection pandas_v2 \
       --library pandas
     ```
+
+    **Incremental by default:** re-running `ingest` on the same `--input`
+    only embeds files that are new or changed — unchanged files are
+    detected by content hash and skipped entirely, and stale chunks left
+    behind by an edited file's shifted chunk boundaries are cleaned up
+    automatically. Chunks for files deleted from `--input` are *not*
+    removed unless you pass `--prune-missing`, since a collection could be
+    built up from more than one `--input` directory and blanket-deleting
+    anything not in the current run would destroy that other content too.
 
 ### 2. Asking Questions (Web UI)
 
