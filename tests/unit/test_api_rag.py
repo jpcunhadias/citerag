@@ -86,6 +86,9 @@ def test_ask_success(monkeypatch):
     )
     mock_rag_service.ask.return_value = mock_rag_response
 
+    monkeypatch.setattr("api.routes.rag.get_search_service", lambda: MagicMock())
+    monkeypatch.setattr("api.routes.rag.get_reranker_service", lambda: MagicMock())
+    monkeypatch.setattr("api.routes.rag.get_llm_client", lambda: MagicMock())
     monkeypatch.setattr("api.routes.rag.RAGService", lambda **kwargs: mock_rag_service)
 
     response = client.post(
@@ -107,6 +110,9 @@ def test_ask_ollama_error(monkeypatch):
     mock_rag_service = MagicMock()
     mock_rag_service.ask.side_effect = OllamaConnectionError("Test Ollama error")
 
+    monkeypatch.setattr("api.routes.rag.get_search_service", lambda: MagicMock())
+    monkeypatch.setattr("api.routes.rag.get_reranker_service", lambda: MagicMock())
+    monkeypatch.setattr("api.routes.rag.get_llm_client", lambda: MagicMock())
     monkeypatch.setattr("api.routes.rag.RAGService", lambda **kwargs: mock_rag_service)
 
     response = client.post(
@@ -123,6 +129,9 @@ def test_ask_general_error(monkeypatch):
     mock_rag_service = MagicMock()
     mock_rag_service.ask.side_effect = Exception("Test general error")
 
+    monkeypatch.setattr("api.routes.rag.get_search_service", lambda: MagicMock())
+    monkeypatch.setattr("api.routes.rag.get_reranker_service", lambda: MagicMock())
+    monkeypatch.setattr("api.routes.rag.get_llm_client", lambda: MagicMock())
     monkeypatch.setattr("api.routes.rag.RAGService", lambda **kwargs: mock_rag_service)
 
     response = client.post(
