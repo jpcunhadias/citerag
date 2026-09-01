@@ -2,7 +2,6 @@
 """Test script to validate Docker Compose setup."""
 
 import sys
-from typing import Optional
 
 import requests
 
@@ -41,7 +40,7 @@ def test_api_collections(base_url: str = "http://localhost:8000") -> bool:
 
 
 def test_api_search(
-    base_url: str = "http://localhost:8000", collection: Optional[str] = None
+    base_url: str = "http://localhost:8000", collection: str | None = None
 ) -> bool:
     """Test API search endpoint."""
     print("\nTesting API search endpoint...")
@@ -67,7 +66,7 @@ def test_api_search(
         return False
 
 
-def test_api_ask(base_url: str = "http://localhost:8000", collection: Optional[str] = None) -> bool:
+def test_api_ask(base_url: str = "http://localhost:8000", collection: str | None = None) -> bool:
     """Test API ask endpoint."""
     print("\nTesting API ask endpoint...")
     if not collection:
@@ -120,7 +119,7 @@ def main() -> int:
     print("=" * 60)
 
     # Get collection name from command line or use default
-    collection: Optional[str] = None
+    collection: str | None = None
     if len(sys.argv) > 1:
         collection = sys.argv[1]
     else:

@@ -2,7 +2,7 @@
 
 import logging
 import re
-from typing import Iterator, Union
+from collections.abc import Iterator
 
 from src.config import RAG_MAX_CONTEXT_CHARS, RAG_REFUSAL_MESSAGE
 from src.llm import OllamaClient
@@ -178,7 +178,7 @@ class RAGService:
         top_k: int = 25,
         top_n: int = 5,
         rerank: bool = True,
-    ) -> Iterator[Union[str, dict]]:
+    ) -> Iterator[str | dict]:
         """
         Execute RAG pipeline and stream LLM tokens. Skips citation compliance check.
 
@@ -230,8 +230,7 @@ class RAGService:
 
         # Step 6: Stream LLM tokens (no citation compliance check for streaming)
         logger.info("Streaming answer with LLM...")
-        for chunk in self.llm_client.generate_stream(full_prompt):
-            yield chunk
+        yield from self.llm_client.generate_stream(full_prompt)
 
         # Step 7: Yield done message with citations
         citations_data = [c.model_dump() for c in citations]

@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Iterator, Optional
+from collections.abc import Iterator
 
 import requests
 from requests.exceptions import RequestException
@@ -21,7 +21,7 @@ class OllamaConnectionError(Exception):
 class OllamaClient:
     """Client for interacting with Ollama API."""
 
-    def __init__(self, base_url: Optional[str] = None):
+    def __init__(self, base_url: str | None = None):
         """
         Initialize OllamaClient.
 

@@ -2,7 +2,7 @@
 
 import hashlib
 import re
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -11,8 +11,8 @@ class SearchQuery(BaseModel):
     """Query model for search requests."""
 
     text: str = Field(..., description="The search query text")
-    library: Optional[str] = Field(None, description="Filter by library name (e.g., 'pandas')")
-    version: Optional[str] = Field(None, description="Filter by library version")
+    library: str | None = Field(None, description="Filter by library name (e.g., 'pandas')")
+    version: str | None = Field(None, description="Filter by library version")
 
 
 class SearchResult(BaseModel):
@@ -25,12 +25,12 @@ class SearchResult(BaseModel):
     canonical_source_id: str = Field(
         ..., description="Canonical source identifier (relative POSIX path)"
     )
-    header: Optional[str] = Field(None, description="Section header (e.g., 'DataFrame.merge')")
-    library: Optional[str] = Field(
+    header: str | None = Field(None, description="Section header (e.g., 'DataFrame.merge')")
+    library: str | None = Field(
         None, description="Library name (optional but recommended for filtering/display)"
     )
-    version: Optional[str] = Field(None, description="Library version (optional but recommended)")
-    title: Optional[str] = Field(None, description="Document title (optional but recommended)")
+    version: str | None = Field(None, description="Library version (optional but recommended)")
+    title: str | None = Field(None, description="Document title (optional but recommended)")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Catch-all for other fields")
 
 
@@ -43,9 +43,9 @@ class Citation(BaseModel):
         ..., description="Canonical source identifier (relative POSIX path)"
     )
     source_path: str = Field(..., description="Source file path")
-    header: Optional[str] = Field(None, description="Section header (e.g., 'DataFrame.merge')")
-    title: Optional[str] = Field(None, description="Document title")
-    score: Optional[float] = Field(None, description="Relevance score from search/rerank")
+    header: str | None = Field(None, description="Section header (e.g., 'DataFrame.merge')")
+    title: str | None = Field(None, description="Document title")
+    score: float | None = Field(None, description="Relevance score from search/rerank")
 
 
 class RAGResponse(BaseModel):
@@ -53,7 +53,7 @@ class RAGResponse(BaseModel):
 
     answer: str = Field(..., description="Generated answer text")
     citations: list[Citation] = Field(..., description="List of citations referenced in the answer")
-    context_used: Optional[str] = Field(None, description="Formatted context used for generation")
+    context_used: str | None = Field(None, description="Formatted context used for generation")
     used_chunk_ids: list[str] = Field(..., description="List of chunk IDs used in the answer")
 
 
@@ -62,8 +62,8 @@ class DocumentChunk(BaseModel):
 
     chunk_id: str = Field(..., description="Stable hash-based chunk identifier")
     text: str = Field(..., description="Chunk text content")
-    dense_vector: Optional[list[float]] = Field(None, description="Dense embedding vector")
-    sparse_vector: Optional[dict[int, float]] = Field(None, description="Sparse embedding vector")
+    dense_vector: list[float] | None = Field(None, description="Dense embedding vector")
+    sparse_vector: dict[int, float] | None = Field(None, description="Sparse embedding vector")
     metadata: dict[str, Any] = Field(
         ..., description="Metadata including source_path, header, title, library, version"
     )

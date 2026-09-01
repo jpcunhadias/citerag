@@ -4,10 +4,8 @@ import logging
 import re
 import uuid
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
-from tqdm import tqdm
 from FlagEmbedding import BGEM3FlagModel
 from langchain_core.documents import Document
 from langchain_text_splitters import (
@@ -21,6 +19,7 @@ from qdrant_client.models import (
     SparseVectorParams,
     VectorParams,
 )
+from tqdm import tqdm
 
 from src.config import (
     CHUNK_OVERLAP,
@@ -88,8 +87,8 @@ def clean_text(text: str) -> str:
 def load_documents(
     docs_path: Path,
     input_root: Path,
-    library: Optional[str] = None,
-    version: Optional[str] = None,
+    library: str | None = None,
+    version: str | None = None,
 ) -> list[dict]:
     """
     Load documents from a directory.
@@ -294,7 +293,7 @@ class VectorService:
         use_fp16 = device.type == "cuda"
         logger.info(f"Initializing BGEM3FlagModel with use_fp16={use_fp16}")
         self.model = BGEM3FlagModel(model_name_or_path=EMBEDDING_MODEL_NAME, use_fp16=use_fp16)
-        self._dense_dimension: Optional[int] = None
+        self._dense_dimension: int | None = None
 
     def embed_documents(
         self, texts: list[str], show_progress: bool = True
@@ -561,8 +560,8 @@ def index_to_qdrant(
 def ingest_documents(
     docs_path: Path,
     collection_name: str,
-    library: Optional[str] = None,
-    version: Optional[str] = None,
+    library: str | None = None,
+    version: str | None = None,
     batch_size: int = EMBEDDING_BATCH_SIZE,
     show_progress: bool = True,
 ) -> None:

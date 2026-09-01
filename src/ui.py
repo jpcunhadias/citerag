@@ -172,9 +172,7 @@ def render() -> None:
                 with st.chat_message("assistant"):
                     full_answer = st.write_stream(stream_result)
 
-                    st.session_state.messages.append(
-                        {"role": "assistant", "content": full_answer}
-                    )
+                    st.session_state.messages.append({"role": "assistant", "content": full_answer})
 
                     response_key = f"response_{len(st.session_state.messages) - 1}"
                     st.session_state[response_key] = {
@@ -183,14 +181,9 @@ def render() -> None:
                         "debug_mode": debug_mode,
                     }
 
-                    if (
-                        full_answer != RAG_REFUSAL_MESSAGE
-                        and stream_result.citations
-                    ):
+                    if full_answer != RAG_REFUSAL_MESSAGE and stream_result.citations:
                         with st.expander("📚 Sources Used"):
-                            citations_data = build_citations_data(
-                                stream_result.citations
-                            )
+                            citations_data = build_citations_data(stream_result.citations)
                             df = pd.DataFrame(citations_data)
                             st.dataframe(df, width="stretch")
 
@@ -226,14 +219,9 @@ def render() -> None:
                         "debug_mode": debug_mode,
                     }
 
-                    if (
-                        response.answer != RAG_REFUSAL_MESSAGE
-                        and response.citations
-                    ):
+                    if response.answer != RAG_REFUSAL_MESSAGE and response.citations:
                         with st.expander("📚 Sources Used"):
-                            citations_data = build_citations_data(
-                                response.citations
-                            )
+                            citations_data = build_citations_data(response.citations)
                             df = pd.DataFrame(citations_data)
                             st.dataframe(df, width="stretch")
 

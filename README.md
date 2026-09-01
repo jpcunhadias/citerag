@@ -128,7 +128,7 @@ The system is composed of two main pipelines:
 
 ### Prerequisites
 
-- Python (see `.python-version` file)
+- [uv](https://docs.astral.sh/uv/) (manages the Python version from `.python-version` and all dependencies)
 - Docker and Docker Compose
 - [Ollama](https://ollama.com/) installed and running.
 
@@ -136,14 +136,15 @@ The system is composed of two main pipelines:
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/run-llama/rag-ds-docsearcher.git
+    git clone git@github.com:jpcunhadias/rag-ds-docsearcher.git
     cd rag-ds-docsearcher
     ```
 
 2.  **Install Python dependencies:**
     ```bash
-    pip install -r requirements.txt
+    uv sync
     ```
+    This creates `.venv`, installs the pinned Python version if needed, and installs all dependencies (including dev tools) from `uv.lock`. Prefix any command below with `uv run` (e.g. `uv run pytest`), or `source .venv/bin/activate` once per shell.
 
 3.  **Pull the required LLM model:**
     ```bash
@@ -283,24 +284,23 @@ This project uses automated code quality checks to maintain consistent code styl
 
 Pre-commit hooks run automatically before each commit to check formatting and linting. **All developers must set up pre-commit hooks.**
 
-1. **Install pre-commit:**
+1. **Install dependencies (includes pre-commit):**
    ```bash
-   pip install pre-commit
+   uv sync
    ```
 
 2. **Install the git hooks:**
    ```bash
-   pre-commit install
+   uv run pre-commit install
    ```
 
 3. **Test the hooks (optional):**
    ```bash
-   pre-commit run --all-files
+   uv run pre-commit run --all-files
    ```
 
 Now, when you commit, the hooks will:
-- Auto-format code with `black`
-- Auto-fix linting issues with `ruff`
+- Auto-format and auto-fix lint issues with `ruff`
 - Check for trailing whitespace, large files, and other common issues
 - Block the commit if unfixable issues are found
 
@@ -312,16 +312,19 @@ You can also run checks manually:
 
 ```bash
 # Format code
-black src tests api scripts
+uv run ruff format src tests api scripts
 
 # Check formatting (without modifying files)
-black --check src tests api scripts
+uv run ruff format --check src tests api scripts
 
 # Lint code
-ruff check src tests api scripts
+uv run ruff check src tests api scripts
 
 # Auto-fix linting issues
-ruff check --fix src tests api scripts
+uv run ruff check --fix src tests api scripts
+
+# Type-check
+uv run mypy src api
 ```
 
 #### Running Tests Locally
@@ -330,13 +333,13 @@ Before pushing code, run tests locally:
 
 ```bash
 # Run fast unit tests (no external services needed)
-pytest tests/unit/ -v
+uv run pytest tests/unit/ -v
 
 # Run integration tests (requires Qdrant, Ollama, FastAPI)
-pytest tests/integration/ -v
+uv run pytest tests/integration/ -v
 
 # Run all tests
-pytest tests/ -v
+uv run pytest tests/ -v
 ```
 
 **Important:** Ensure all tests pass locally before creating a pull request.

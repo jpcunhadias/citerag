@@ -1,6 +1,5 @@
 """Pydantic models for FastAPI request/response schemas."""
 
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -25,7 +24,7 @@ class AskResponse(BaseModel):
 
     answer: str = Field(..., description="Generated answer text")
     citations: list[Citation] = Field(..., description="List of citations referenced in the answer")
-    context_used: Optional[str] = Field(
+    context_used: str | None = Field(
         None, description="Formatted context used for generation (only if debug=True)"
     )
     used_chunk_ids: list[str] = Field(..., description="List of chunk IDs used in the answer")
@@ -37,7 +36,7 @@ class SearchRequest(BaseModel):
     query: str = Field(..., description="Search query text")
     collection: str = Field(..., description="Qdrant collection name")
     top_k: int = Field(5, ge=1, le=100, description="Number of results to return")
-    filters: Optional[dict[str, str]] = Field(
+    filters: dict[str, str] | None = Field(
         None, description="Optional filters (e.g., {'library': 'pandas', 'version': '2.0'})"
     )
 
