@@ -1,5 +1,7 @@
 # RAG DS DocSearcher
 
+[![CI](https://github.com/jpcunhadias/rag-ds-docsearcher/actions/workflows/ci.yml/badge.svg)](https://github.com/jpcunhadias/rag-ds-docsearcher/actions/workflows/ci.yml)
+
 A self-hosted, offline-first documentation search engine powered by a Retrieval-Augmented Generation (RAG) pipeline. This system indexes local technical documentation and provides a simple web interface for asking questions and finding relevant information.
 
 ## High-Level Architecture
