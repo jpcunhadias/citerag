@@ -213,3 +213,6 @@ data/processed/*
 !data/processed/.gitkeep
 data/interim/*
 !data/interim/.gitkeep
+
+# Eval harness run output (see eval/README.md)
+eval/results/

@@ -1,0 +1,68 @@
+# Golden set for the RAG eval harness (scripts/run_eval.py).
+#
+# Cases target the fixture docs from `python scripts/generate_test_data.py`.
+# Ingest pandas_docs and numpy_docs before running (see eval/README.md).
+#
+# Fields:
+#   id                 unique case name
+#   collection         Qdrant collection to query
+#   query              the question to ask
+#   expect_refusal     true if this query should be refused (default: false)
+#   expected_keywords  substrings (case-insensitive) the answer must contain
+#   min_citations      minimum citation count expected (default: 0)
+
+- id: pandas_dataframe_from_dict
+  collection: pandas_docs
+  query: "How do I create a DataFrame from a dictionary?"
+  expected_keywords: ["DataFrame"]
+  min_citations: 1
+
+- id: pandas_dataframe_creation_methods
+  collection: pandas_docs
+  query: "What are the different ways to create a DataFrame?"
+  expected_keywords: ["DataFrame"]
+  min_citations: 1
+
+- id: pandas_filter_rows
+  collection: pandas_docs
+  query: "How do I filter rows in a DataFrame?"
+  expected_keywords: ["filter"]
+  min_citations: 1
+
+- id: pandas_loc_iloc
+  collection: pandas_docs
+  query: "Explain how to use loc and iloc for indexing"
+  expected_keywords: ["loc", "iloc"]
+  min_citations: 1
+
+- id: pandas_groupby
+  collection: pandas_docs
+  query: "How do I group data in pandas?"
+  expected_keywords: ["group"]
+  min_citations: 1
+
+- id: numpy_array_creation
+  collection: numpy_docs
+  query: "How do I create a NumPy array?"
+  expected_keywords: ["array"]
+  min_citations: 1
+
+- id: refusal_cooking
+  collection: pandas_docs
+  query: "How do I make pasta?"
+  expect_refusal: true
+
+- id: refusal_capital_of_france
+  collection: pandas_docs
+  query: "What is the capital of France?"
+  expect_refusal: true
+
+- id: refusal_gibberish
+  collection: pandas_docs
+  query: "asdf qwer zxcv"
+  expect_refusal: true
+
+- id: refusal_soccer
+  collection: pandas_docs
+  query: "Tell me about soccer rules"
+  expect_refusal: true
