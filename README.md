@@ -362,3 +362,13 @@ This will test:
 - Streamlit UI accessibility
 
 See `tests/integration/test_docker_setup_integration.py` for more details.
+
+## Eval Harness
+
+Unit and integration tests verify the code works; they don't verify answers
+are any *good*. `eval/` runs a golden set of questions through the real RAG
+pipeline and checks the answers against known-good expectations (keywords,
+citation counts, expected refusals) — catches answer-quality regressions
+from a model swap, prompt change, or reranking tweak. Requires a live stack
+(Qdrant + Ollama), so it runs on the server, not in CI. See
+[`eval/README.md`](eval/README.md).
