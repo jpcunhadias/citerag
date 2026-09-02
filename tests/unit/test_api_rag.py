@@ -105,6 +105,30 @@ def test_ask_success(monkeypatch):
     assert response_data["used_chunk_ids"] == expected_data["used_chunk_ids"]
 
 
+def test_ask_threads_use_hyde_to_rag_service(monkeypatch):
+    """Test that the use_hyde request field is passed through to RAGService.ask."""
+    mock_rag_service = MagicMock()
+    mock_rag_service.ask.return_value = RAGResponse(
+        answer="Answer with [1] citation.",
+        citations=[],
+        context_used=None,
+        used_chunk_ids=[],
+    )
+
+    monkeypatch.setattr("api.routes.rag.get_search_service", lambda: MagicMock())
+    monkeypatch.setattr("api.routes.rag.get_reranker_service", lambda: MagicMock())
+    monkeypatch.setattr("api.routes.rag.get_llm_client", lambda: MagicMock())
+    monkeypatch.setattr("api.routes.rag.RAGService", lambda **kwargs: mock_rag_service)
+
+    response = client.post(
+        "/api/ask",
+        json={"query": "test query", "collection": "test_collection", "use_hyde": True},
+    )
+
+    assert response.status_code == 200
+    assert mock_rag_service.ask.call_args.kwargs["use_hyde"] is True
+
+
 def test_ask_ollama_error(monkeypatch):
     """Test ask with an Ollama connection error."""
     mock_rag_service = MagicMock()

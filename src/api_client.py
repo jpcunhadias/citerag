@@ -61,6 +61,7 @@ class APIClient:
         top_n: int = 5,
         rerank: bool = True,
         debug: bool = False,
+        use_hyde: bool = False,
     ) -> RAGResponse:
         """
         Execute RAG pipeline via API.
@@ -72,6 +73,7 @@ class APIClient:
             top_n: Number of results to rerank and use for context
             rerank: Whether to apply reranking
             debug: Whether to include context_used in response
+            use_hyde: Retrieve using a generated hypothetical answer instead of the raw query
 
         Returns:
             RAGResponse with answer, citations, and metadata
@@ -87,6 +89,7 @@ class APIClient:
             "top_n": top_n,
             "rerank": rerank,
             "debug": debug,
+            "use_hyde": use_hyde,
         }
 
         try:
@@ -126,6 +129,7 @@ class APIClient:
         top_k: int = 25,
         top_n: int = 5,
         rerank: bool = True,
+        use_hyde: bool = False,
     ) -> StreamAskResult:
         """
         Execute RAG pipeline via streaming API. Returns StreamAskResult for st.write_stream.
@@ -138,6 +142,7 @@ class APIClient:
             top_k: Number of initial search results
             top_n: Number of results to rerank and use for context
             rerank: Whether to apply reranking
+            use_hyde: Retrieve using a generated hypothetical answer instead of the raw query
 
         Returns:
             StreamAskResult with __iter__ yielding token strings; citations populated when done.
@@ -149,6 +154,7 @@ class APIClient:
             "top_k": top_k,
             "top_n": top_n,
             "rerank": rerank,
+            "use_hyde": use_hyde,
         }
 
         citations: list[Citation] = []

@@ -288,6 +288,12 @@ python3 app.py ask "how do i merge two dataframes?" --collection pandas_v2
 
 This will output a detailed answer along with the sources used to generate it.
 
+Add `--hyde` to retrieve using an LLM-generated hypothetical answer instead
+of the raw query ([HyDE](https://arxiv.org/abs/2212.10496)) — can help on
+short or keyword-poor questions. The final answer is still grounded in your
+real question; only retrieval changes. See [`eval/README.md`](eval/README.md)
+for how to A/B it against the baseline.
+
 ## Development Setup
 
 ### Code Quality Tools
