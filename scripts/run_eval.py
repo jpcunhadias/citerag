@@ -36,10 +36,16 @@ def main() -> int:
         default=0.8,
         help="Exit non-zero if pass rate falls below this fraction (default: 0.8)",
     )
+    parser.add_argument(
+        "--hyde",
+        action="store_true",
+        help="Retrieve using a generated hypothetical answer (HyDE) instead of the raw query",
+    )
     args = parser.parse_args()
 
     cases = load_golden_set(args.golden_set)
-    print(f"Loaded {len(cases)} golden-set cases from {args.golden_set}\n")
+    mode = "HyDE" if args.hyde else "baseline"
+    print(f"Loaded {len(cases)} golden-set cases from {args.golden_set} ({mode} retrieval)\n")
 
     qdrant_client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
     vector_service = VectorService()
@@ -55,7 +61,7 @@ def main() -> int:
     results = []
     for case in cases:
         print(f"[{case.id}] {case.query!r} (collection={case.collection})...", end=" ", flush=True)
-        response = rag_service.ask(query=case.query, collection=case.collection)
+        response = rag_service.ask(query=case.query, collection=case.collection, use_hyde=args.hyde)
         result = score_case(case, response)
         results.append(result)
         print("PASS" if result.passed else f"FAIL: {'; '.join(result.reasons)}")

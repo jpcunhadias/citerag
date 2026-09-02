@@ -90,6 +90,7 @@ def ask_command(args: argparse.Namespace) -> int:
             top_n=args.top_n,
             rerank=not args.no_rerank,
             debug=args.debug,
+            use_hyde=args.hyde,
         )
 
         # Print Answer
@@ -296,6 +297,11 @@ def main() -> int:
         "--debug",
         action="store_true",
         help="Include context_used in response",
+    )
+    ask_parser.add_argument(
+        "--hyde",
+        action="store_true",
+        help="Retrieve using a generated hypothetical answer (HyDE) instead of the raw query",
     )
 
     args = parser.parse_args()

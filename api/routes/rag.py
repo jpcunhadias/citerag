@@ -59,6 +59,7 @@ async def ask(request: AskRequest) -> AskResponse:
             top_n=request.top_n,
             rerank=request.rerank,
             debug=request.debug,
+            use_hyde=request.use_hyde,
         )
 
         # Convert to API response model
@@ -102,6 +103,7 @@ async def ask_stream(request: AskRequest) -> StreamingResponse:
                 top_k=request.top_k,
                 top_n=request.top_n,
                 rerank=request.rerank,
+                use_hyde=request.use_hyde,
             ):
                 q.put(item)
         except Exception as e:

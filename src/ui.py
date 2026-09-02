@@ -105,6 +105,11 @@ def render() -> None:
         use_reranker = st.checkbox("Use Reranker", value=True)
         stream_response = st.checkbox("Stream response", value=True)
         debug_mode = st.checkbox("Debug Mode", value=False)
+        use_hyde = st.checkbox(
+            "Use HyDE",
+            value=False,
+            help="Retrieve using a generated hypothetical answer instead of the raw query",
+        )
 
         # Clear Chat Button
         if st.button("Clear Chat"):
@@ -171,6 +176,7 @@ def render() -> None:
                         top_k=top_k,
                         top_n=top_n,
                         rerank=use_reranker,
+                        use_hyde=use_hyde,
                     )
 
                 with st.chat_message("assistant"):
@@ -207,6 +213,7 @@ def render() -> None:
                         top_n=top_n,
                         rerank=use_reranker,
                         debug=debug_mode,
+                        use_hyde=use_hyde,
                     )
 
                 with st.chat_message("assistant"):

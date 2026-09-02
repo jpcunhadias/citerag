@@ -34,6 +34,22 @@ Prints a per-case PASS/FAIL line, a summary, and writes a JSON report to
 `--fail-under` (default 0.8) — useful as a manual gate before/after a model
 or prompt change.
 
+## Comparing a retrieval change (e.g. HyDE)
+
+`--hyde` retrieves using an LLM-generated hypothetical answer instead of the
+raw query (`RAGService.ask(..., use_hyde=True)`) — same idea as any other
+retrieval variant you might want to A/B against the baseline. Point each run
+at its own report file so they don't overwrite each other:
+
+```bash
+uv run python scripts/run_eval.py --report-out eval/results/baseline.json
+uv run python scripts/run_eval.py --hyde --report-out eval/results/hyde.json
+```
+
+Then diff the two JSON reports, or just compare the printed pass rates. The
+golden set is small on purpose — good enough to catch a regression or
+confirm a real improvement, not a statistically rigorous benchmark.
+
 ## Adding cases
 
 Edit `eval/golden_set.yaml`. Each case is either:

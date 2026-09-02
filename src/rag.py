@@ -89,6 +89,32 @@ class RAGService:
 
         return context_str, citations, used_chunk_ids
 
+    def _generate_hyde_passage(self, query: str) -> str:
+        """
+        Generate a hypothetical passage answering the query (HyDE).
+
+        Used only to produce a better retrieval embedding for vague or
+        keyword-poor queries — a hypothetical answer tends to sit closer in
+        embedding space to real matching documents than the bare question
+        does. The real query is still used for the final answer prompt; this
+        passage is never shown to the user.
+
+        Args:
+            query: User query text.
+
+        Returns:
+            LLM-generated hypothetical documentation passage.
+        """
+        hyde_prompt = (
+            "Write a short passage (2-4 sentences) that directly answers the "
+            "following question, written as if it were an excerpt from "
+            "technical documentation. State it as fact even if you are not "
+            "certain of exact details — this passage is only used to improve "
+            "document retrieval, it is not shown to the user.\n\n"
+            f"Question: {query}\n\nPassage:"
+        )
+        return self.llm_client.generate(hyde_prompt)
+
     def ask(
         self,
         query: str,
@@ -97,6 +123,7 @@ class RAGService:
         top_n: int = 5,
         rerank: bool = True,
         debug: bool = False,
+        use_hyde: bool = False,
     ) -> RAGResponse:
         """
         Execute RAG pipeline: search, rerank, build context, and generate answer.
@@ -108,17 +135,29 @@ class RAGService:
             top_n: Number of results to rerank and use for context.
             rerank: Whether to apply reranking (default: True).
             debug: Whether to include context_used in response (default: False).
+            use_hyde: Retrieve using a generated hypothetical answer instead of
+                the raw query (default: False). The final answer is still
+                grounded in the real query.
 
         Returns:
             RAGResponse object with answer, citations, and metadata.
         """
         logger.info(
             f"RAG pipeline started: query='{query[:50]}...', "
-            f"top_k={top_k}, top_n={top_n}, rerank={rerank}"
+            f"top_k={top_k}, top_n={top_n}, rerank={rerank}, use_hyde={use_hyde}"
         )
 
-        # Step 1: Hybrid search
-        results = self.search_service.hybrid_search(query=query, collection=collection, top_k=top_k)
+        # Step 1: Hybrid search (optionally retrieving with a HyDE passage
+        # instead of the raw query; the answer prompt below always uses the
+        # real query)
+        search_query = query
+        if use_hyde:
+            search_query = self._generate_hyde_passage(query)
+            logger.info(f"HyDE passage for retrieval: '{search_query[:80]}...'")
+
+        results = self.search_service.hybrid_search(
+            query=search_query, collection=collection, top_k=top_k
+        )
         logger.info(f"Search returned {len(results)} results")
 
         # Step 2: Rerank if enabled
@@ -181,6 +220,7 @@ class RAGService:
         top_k: int = 25,
         top_n: int = 5,
         rerank: bool = True,
+        use_hyde: bool = False,
     ) -> Iterator[str | dict]:
         """
         Execute RAG pipeline and stream LLM tokens. Skips citation compliance check.
@@ -194,17 +234,29 @@ class RAGService:
             top_k: Number of initial search results to retrieve.
             top_n: Number of results to rerank and use for context.
             rerank: Whether to apply reranking (default: True).
+            use_hyde: Retrieve using a generated hypothetical answer instead of
+                the raw query (default: False). The final answer is still
+                grounded in the real query.
 
         Yields:
             str: Token chunks from the LLM, or a dict with type="done" and citations.
         """
         logger.info(
             f"RAG stream started: query='{query[:50]}...', "
-            f"top_k={top_k}, top_n={top_n}, rerank={rerank}"
+            f"top_k={top_k}, top_n={top_n}, rerank={rerank}, use_hyde={use_hyde}"
         )
 
-        # Step 1: Hybrid search
-        results = self.search_service.hybrid_search(query=query, collection=collection, top_k=top_k)
+        # Step 1: Hybrid search (optionally retrieving with a HyDE passage
+        # instead of the raw query; the answer prompt below always uses the
+        # real query)
+        search_query = query
+        if use_hyde:
+            search_query = self._generate_hyde_passage(query)
+            logger.info(f"HyDE passage for retrieval: '{search_query[:80]}...'")
+
+        results = self.search_service.hybrid_search(
+            query=search_query, collection=collection, top_k=top_k
+        )
         logger.info(f"Search returned {len(results)} results")
 
         # Step 2: Rerank if enabled

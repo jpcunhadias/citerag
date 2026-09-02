@@ -208,6 +208,78 @@ class TestRAGService:
         assert "[1]" in response.answer
         assert response.answer != "I couldn't find this in the indexed documentation."
 
+    def test_ask_without_hyde_searches_with_raw_query(
+        self, rag_service, mock_search_service, mock_llm_client, sample_search_results
+    ):
+        """Test that ask (use_hyde default False) retrieves with the raw query, one LLM call."""
+        mock_search_service.hybrid_search.return_value = sample_search_results
+        mock_llm_client.generate.return_value = "Answer with [1] citation."
+
+        rag_service.ask(
+            query="how do I merge dataframes?", collection="test_collection", rerank=False
+        )
+
+        mock_search_service.hybrid_search.assert_called_once_with(
+            query="how do I merge dataframes?", collection="test_collection", top_k=25
+        )
+        mock_llm_client.generate.assert_called_once()
+
+    def test_ask_with_hyde_searches_with_generated_passage(
+        self, rag_service, mock_search_service, mock_llm_client, sample_search_results
+    ):
+        """Test that use_hyde=True retrieves with a generated passage, not the raw query."""
+        mock_search_service.hybrid_search.return_value = sample_search_results
+        mock_llm_client.generate.side_effect = [
+            "DataFrames can be merged using pd.merge().",  # HyDE passage
+            "Answer with [1] citation.",  # final answer
+        ]
+
+        response = rag_service.ask(
+            query="how do I merge dataframes?",
+            collection="test_collection",
+            rerank=False,
+            use_hyde=True,
+        )
+
+        mock_search_service.hybrid_search.assert_called_once_with(
+            query="DataFrames can be merged using pd.merge().",
+            collection="test_collection",
+            top_k=25,
+        )
+        assert mock_llm_client.generate.call_count == 2
+        assert response.answer == "Answer with [1] citation."
+
+    def test_ask_with_hyde_reranks_and_answers_with_raw_query(
+        self,
+        rag_service,
+        mock_search_service,
+        mock_reranker_service,
+        mock_llm_client,
+        sample_search_results,
+    ):
+        """Test that use_hyde only affects retrieval — rerank and the answer prompt still use
+        the real query, not the HyDE passage."""
+        mock_search_service.hybrid_search.return_value = sample_search_results
+        mock_reranker_service.rerank.return_value = sample_search_results
+        mock_llm_client.generate.side_effect = [
+            "A hypothetical passage about merging.",
+            "Answer with [1] citation.",
+        ]
+
+        rag_service.ask(
+            query="how do I merge dataframes?",
+            collection="test_collection",
+            rerank=True,
+            use_hyde=True,
+        )
+
+        mock_reranker_service.rerank.assert_called_once_with(
+            query="how do I merge dataframes?", results=sample_search_results, top_n=5
+        )
+        final_prompt = mock_llm_client.generate.call_args_list[1].args[0]
+        assert "how do I merge dataframes?" in final_prompt
+        assert "A hypothetical passage about merging." not in final_prompt
+
     def test_ask_allows_refusal_string(
         self, rag_service, mock_search_service, mock_llm_client, sample_search_results
     ):
@@ -442,6 +514,38 @@ class TestRAGService:
         assert "used_chunk_ids" in items[-1]
         assert len(items[-1]["citations"]) == 1
         assert items[-1]["citations"][0]["chunk_id"] == "chunk1"
+
+    def test_ask_stream_with_hyde_searches_with_generated_passage(
+        self, rag_service, mock_search_service, mock_reranker_service, mock_llm_client
+    ):
+        """Test that ask_stream's use_hyde retrieves with a generated passage."""
+        results = [
+            SearchResult(
+                chunk_id="chunk1",
+                score=0.9,
+                text="Context text",
+                source_path="doc.md",
+                canonical_source_id="doc.md",
+                header="Section",
+            )
+        ]
+        mock_search_service.hybrid_search.return_value = results
+        mock_reranker_service.rerank.return_value = results
+        mock_llm_client.generate.return_value = "A hypothetical passage."
+        mock_llm_client.generate_stream.return_value = iter(["Hello"])
+
+        list(
+            rag_service.ask_stream(
+                query="test",
+                collection="test_collection",
+                use_hyde=True,
+            )
+        )
+
+        mock_search_service.hybrid_search.assert_called_once_with(
+            query="A hypothetical passage.", collection="test_collection", top_k=25
+        )
+        mock_llm_client.generate.assert_called_once()  # HyDE passage only, no compliance check
 
     def test_ask_stream_empty_context_yields_refusal_and_done(
         self, rag_service, mock_search_service

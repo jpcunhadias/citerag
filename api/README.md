@@ -48,9 +48,14 @@ Execute the full RAG pipeline: search, rerank, build context, and generate answe
   "top_k": 25,
   "top_n": 5,
   "rerank": true,
-  "debug": false
+  "debug": false,
+  "use_hyde": false
 }
 ```
+
+`use_hyde`: retrieve using an LLM-generated hypothetical answer instead of
+the raw query ([HyDE](https://arxiv.org/abs/2212.10496)). Only affects
+retrieval — the final answer is still grounded in `query`.
 
 **Response:**
 ```json

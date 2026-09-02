@@ -16,6 +16,10 @@ class AskRequest(BaseModel):
     )
     rerank: bool = Field(True, description="Whether to apply reranking")
     debug: bool = Field(False, description="Whether to include context_used in response")
+    use_hyde: bool = Field(
+        False,
+        description="Retrieve using a generated hypothetical answer (HyDE), not the raw query",
+    )
 
 
 class AskResponse(BaseModel):
