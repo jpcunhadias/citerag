@@ -51,7 +51,7 @@ def test_root():
     response = client.get("/")
     assert response.status_code == 200
     assert response.json() == {
-        "message": "RAG Documentation Search API",
+        "message": "CiteRAG API",
         "docs": "/docs",
         "health": "/health",
     }

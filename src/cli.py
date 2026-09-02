@@ -184,7 +184,7 @@ def search_command(args: argparse.Namespace) -> int:
 
 def main() -> int:
     """Main CLI entrypoint."""
-    parser = argparse.ArgumentParser(description="RAG Documentation Search System CLI")
+    parser = argparse.ArgumentParser(description="CiteRAG CLI")
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
 
     # Ingest command

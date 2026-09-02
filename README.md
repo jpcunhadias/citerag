@@ -1,10 +1,20 @@
-# RAG DS DocSearcher
+# CiteRAG
 
-[![CI](https://github.com/jpcunhadias/rag-ds-docsearcher/actions/workflows/ci.yml/badge.svg)](https://github.com/jpcunhadias/rag-ds-docsearcher/actions/workflows/ci.yml)
+[![CI](https://github.com/jpcunhadias/citerag/actions/workflows/ci.yml/badge.svg)](https://github.com/jpcunhadias/citerag/actions/workflows/ci.yml)
 
-A self-hosted, offline-first documentation search engine powered by a Retrieval-Augmented Generation (RAG) pipeline. This system indexes local technical documentation and provides a simple web interface for asking questions and finding relevant information.
+CiteRAG is a self-hosted question-answering system for technical documentation. It indexes local `.md`/`.txt` docs, retrieves with hybrid dense+sparse search and cross-encoder reranking, and answers with enforced citations: if the LLM can't back a claim with a source, the answer is replaced with a refusal instead of shown unsupported. All inference runs locally — no data leaves your machine.
 
-## High-Level Architecture
+## Features
+
+- **Hybrid retrieval** — dense + sparse embeddings (`BAAI/bge-m3`) fused with Reciprocal Rank Fusion, so both semantic and keyword matches surface.
+- **Cross-encoder reranking** (`BAAI/bge-reranker-v2-m3`) refines the candidate set before it reaches the LLM.
+- **Enforced citations** — answers are checked for citation labels before being returned; an uncited answer is replaced with a refusal rather than shown as fact.
+- **Optional HyDE retrieval** — retrieve using an LLM-generated hypothetical answer instead of the raw query, useful for short or keyword-poor questions. Only affects retrieval; the final answer is still grounded in the real question.
+- **Incremental ingestion** — re-running ingestion skips unchanged files (by content hash) and cleans up chunks left behind by edited files, instead of re-embedding everything every time.
+- **Answer-quality eval harness** — a golden set of questions run against the live pipeline, checked against known-good expectations. Catches regressions that a mocked-model unit test suite can't. See [`eval/README.md`](eval/README.md).
+- **Three interfaces** — a Streamlit chat UI, a FastAPI backend, and a CLI, all backed by the same `RAGService`.
+
+## Architecture
 
 ```mermaid
 graph TD
@@ -41,10 +51,10 @@ graph TD
         OllamaProc["Ollama Process (HTTP:11434)"]
         FileSystem["Local Docs (.md / .txt)"]
 
-        subgraph Hardware ["RTX 2080 Ti (11GB VRAM)"]
+        subgraph Hardware ["GPU (CUDA)"]
             GPU_Embed["BGE-M3 (Embeddings)"]
             GPU_Rerank["BGE-Reranker-v2-m3 (Cross-Encoder)"]
-            GPU_LLM["Llama-3-8B (Inference)"]
+            GPU_LLM["LLM Inference (Ollama)"]
         end
     end
 
@@ -94,37 +104,21 @@ graph TD
     class GPU_Embed,GPU_Rerank,GPU_LLM hardware;
 ```
 
-## Features
+Two pipelines:
 
-- **Offline-First:** Runs entirely on local hardware. No data leaves your machine.
-- **State-of-the-Art RAG:** Implements a sophisticated RAG pipeline using cutting-edge models.
-- **Hybrid Search:** Utilizes `BGE-M3` for dense and sparse embeddings, ensuring both semantic and keyword understanding.
-- **Cross-Encoder Re-ranking:** Employs `BGE-Reranker-v2-M3` to refine search results for maximum relevance.
-- **LLM Synthesis:** Uses `Llama-3-8B` via Ollama to generate accurate, context-aware answers.
-- **Dual Interfaces:** Interact via a clean Streamlit web UI or a powerful command-line interface.
-- **Citation-Aware:** All generated answers include citations, allowing you to verify the source of the information.
+1. **Ingestion** — `CLI → Loader → Cleaner → HeaderSplitter → RecursiveSplitter → VectorService → Qdrant`. Loads `.md`/`.txt` files, cleans and chunks them deterministically, generates dense + sparse embeddings, and indexes into Qdrant.
+2. **Search** — `Query → Hybrid Search → Reranking → LLM Synthesis → Answer`. A query triggers hybrid search in Qdrant, results are reranked, and the top results become context for a cited answer.
 
 ## Tech Stack
 
-- **Vector DB:** Qdrant (running in Docker)
-- **Backend API:** FastAPI with Uvicorn
+- **Vector DB:** Qdrant (Docker)
+- **Backend API:** FastAPI + Uvicorn
 - **Frontend:** Streamlit
-- **Embedding Model:** `BAAI/bge-m3` (via `FlagEmbedding`)
-- **Reranker Model:** `BAAI/bge-reranker-v2-m3`
-- **LLM:** Ollama with `Llama-3-8B-Instruct`
-- **Core Libraries:** `langchain`, `sentence-transformers`, `torch`, `qdrant-client`, `fastapi`, `httpx`
-
-## Architecture
-
-The system is composed of two main pipelines:
-
-1.  **Ingestion Pipeline:**
-    `CLI -> Loader -> Cleaner -> HeaderSplitter -> RecursiveSplitter -> VectorService -> Qdrant`
-    This pipeline loads `.md` and `.txt` files, cleans the text, splits it into deterministic chunks, generates dense and sparse embeddings, and indexes them into the Qdrant vector database.
-
-2.  **Search Pipeline:**
-    `Query -> Hybrid Search -> Re-ranking -> LLM Synthesis -> Answer`
-    A user query triggers a hybrid search in Qdrant. The results are re-ranked for relevance, and the top results are used as context for the LLM to generate a final, cited answer.
+- **Embedding model:** `BAAI/bge-m3` (via `FlagEmbedding`)
+- **Reranker model:** `BAAI/bge-reranker-v2-m3`
+- **LLM:** Ollama
+- **Core libraries:** `langchain`, `sentence-transformers`, `torch`, `qdrant-client`, `fastapi`, `httpx`
+- **Tooling:** `uv`, `ruff`, `mypy`, `pytest`
 
 ## Getting Started
 
@@ -132,261 +126,141 @@ The system is composed of two main pipelines:
 
 - [uv](https://docs.astral.sh/uv/) (manages the Python version from `.python-version` and all dependencies)
 - Docker and Docker Compose
-- [Ollama](https://ollama.com/) installed and running.
+- [Ollama](https://ollama.com/) installed and running
 
 ### Installation & Setup
 
 1.  **Clone the repository:**
     ```bash
-    git clone git@github.com:jpcunhadias/rag-ds-docsearcher.git
-    cd rag-ds-docsearcher
+    git clone git@github.com:jpcunhadias/citerag.git
+    cd citerag
     ```
 
 2.  **Install Python dependencies:**
     ```bash
     uv sync
     ```
-    This creates `.venv`, installs the pinned Python version if needed, and installs all dependencies (including dev tools) from `uv.lock`. Prefix any command below with `uv run` (e.g. `uv run pytest`), or `source .venv/bin/activate` once per shell.
+    Creates `.venv`, installs the pinned Python version if needed, and installs all dependencies (including dev tools) from `uv.lock`. Prefix commands below with `uv run` (e.g. `uv run pytest`), or `source .venv/bin/activate` once per shell.
 
-3.  **Pull the required LLM model:**
+3.  **Pull an LLM model:**
     ```bash
-    ollama pull llama3:8b-instruct
+    ollama pull llama3
     ```
+    Matches the default `OLLAMA_MODEL_NAME`; set that env var to use a different model.
 
 4.  **Start services with Docker Compose:**
 
-    **Option A: Full stack (recommended for production)**
+    **Option A: Full stack**
     ```bash
     docker-compose up -d
     ```
-    This starts Qdrant, FastAPI backend, and Streamlit UI. Access:
-    - Streamlit UI: http://localhost:8501 (or http://<your-ip>:8501 from other devices on your network)
-    - FastAPI API: http://localhost:8000 (or http://<your-ip>:8000 from other devices on your network)
-    - API Docs: http://localhost:8000/docs (or http://<your-ip>:8000/docs from other devices on your network)
+    Starts Qdrant, the FastAPI backend, and the Streamlit UI:
+    - Streamlit UI: http://localhost:8501
+    - FastAPI API: http://localhost:8000
+    - API docs: http://localhost:8000/docs
 
-    **Option B: Qdrant only (for local development)**
+    **Option B: Qdrant only** (run FastAPI/Streamlit locally — see [Usage](#usage))
     ```bash
     docker-compose up -d qdrant
     ```
-    Then run FastAPI and Streamlit locally (see Usage section below).
 
-    **Important Notes:**
-    - Models are kept on the host filesystem (`~/.cache`) and mounted into containers to avoid re-downloading
-    - **Ollama Configuration**: Ollama must be configured to listen on all interfaces (not just localhost) for containers to access it:
-      ```bash
-      # Set OLLAMA_HOST environment variable before starting Ollama
-      export OLLAMA_HOST=0.0.0.0:11434
-      ollama serve
-      ```
-      Or add to your shell profile: `echo 'export OLLAMA_HOST=0.0.0.0:11434' >> ~/.bashrc`
-    - The `HOME` environment variable must be set for model cache mounting to work
-    - To rebuild containers after code changes: `docker-compose build && docker-compose up -d`
-
-## Production Configuration
-
-### CORS Security
-
-The FastAPI backend uses CORS (Cross-Origin Resource Sharing) middleware to control which origins can make requests to the API. This is critical for production security.
-
-**Default Configuration (Development):**
-```bash
-CORS_ORIGINS=http://localhost:8501
-```
-
-**Production Configuration:**
-Set the `CORS_ORIGINS` environment variable to your specific frontend URL(s):
-```bash
-CORS_ORIGINS=https://your-app.example.com,https://admin.example.com
-```
-
-**To configure for production:**
-1. Edit `docker-compose.yml` and update the `CORS_ORIGINS` environment variable under the `api` service
-2. Or set the environment variable when starting the API:
-   ```bash
-   export CORS_ORIGINS=https://your-app.example.com
-   uvicorn api.main:app --host 0.0.0.0 --port 8000
-   ```
-
-**Security Warning:** Never use wildcard origins (`*`) in production as this allows any website to make requests to your API, creating a significant security vulnerability.
+    **Notes:**
+    - Models are kept on the host filesystem (`~/.cache`) and mounted into containers to avoid re-downloading.
+    - Ollama must listen on all interfaces for containers to reach it: `export OLLAMA_HOST=0.0.0.0:11434` before `ollama serve` (or add to your shell profile).
+    - `HOME` must be set for model cache mounting to work.
+    - Rebuild after code changes: `docker-compose build && docker-compose up -d`.
 
 ## Usage
 
-This project provides two interfaces: a web app and a CLI.
+### Ingesting documents (CLI)
 
-### 1. Ingesting Documents (CLI)
+```bash
+python3 app.py ingest --input <path_to_your_docs> --collection <your_collection_name>
+```
 
-Before you can search, you must index your documentation.
+- `--input`: directory of `.md`/`.txt` files
+- `--collection`: Qdrant collection name
+- `--library`, `--version`: optional metadata tags
+- `--prune-missing`: also delete chunks for files no longer under `--input` (off by default — only safe if this collection is populated exclusively from this `--input` directory; see the flag's `--help` text)
 
-1.  Place your `.md` or `.txt` files in a directory (e.g., `data/raw/my-docs`).
-2.  Run the ingestion command:
-    ```bash
-    python3 app.py ingest --input <path_to_your_docs> --collection <your_collection_name>
-    ```
-    - `--input`: Path to the directory containing your documents.
-    - `--collection`: A unique name for the Qdrant collection.
-    - `--library`, `--version`: (Optional) Metadata tags.
-    - `--prune-missing`: (Optional) Also delete chunks for files no longer
-      present under `--input`. Off by default. Only safe if this collection
-      is populated exclusively from this `--input` directory — see below.
+```bash
+# Ingest documentation for the pandas library
+python3 app.py ingest \
+  --input data/raw/pandas-docs \
+  --collection pandas_v2 \
+  --library pandas
+```
 
-    **Example:**
-    ```bash
-    # Ingest documentation for the pandas library
-    python3 app.py ingest \
-      --input data/raw/pandas-docs \
-      --collection pandas_v2 \
-      --library pandas
-    ```
+Ingestion is incremental: unchanged files are skipped by content hash, and stale chunks from edited files are cleaned up automatically.
 
-    **Incremental by default:** re-running `ingest` on the same `--input`
-    only embeds files that are new or changed — unchanged files are
-    detected by content hash and skipped entirely, and stale chunks left
-    behind by an edited file's shifted chunk boundaries are cleaned up
-    automatically. Chunks for files deleted from `--input` are *not*
-    removed unless you pass `--prune-missing`, since a collection could be
-    built up from more than one `--input` directory and blanket-deleting
-    anything not in the current run would destroy that other content too.
+### Asking questions (Web UI)
 
-### 2. Asking Questions (Web UI)
-
-The easiest way to interact with your documents is through the Streamlit web application.
-
-**Using Docker Compose (recommended):**
 ```bash
 docker-compose up -d
 ```
-Then open http://localhost:8501 in your browser.
+Open http://localhost:8501.
 
-**Using local development:**
-1.  **Start the FastAPI backend:**
-    ```bash
-    uvicorn api.main:app --reload
-    ```
-    This will start the API server at `http://localhost:8000`. The `--reload` flag enables hot-reload during development.
+**Local development**, instead of Docker:
+```bash
+uvicorn api.main:app --reload      # terminal 1
+streamlit run ui.py                 # terminal 2
+```
+Select a collection in the sidebar and start asking questions. The Streamlit UI needs the FastAPI backend running; the CLI does not.
 
-2.  **Start the Streamlit UI** (in a separate terminal):
-    ```bash
-    streamlit run ui.py
-    ```
-3.  **Open your browser** to the displayed URL (usually `http://localhost:8501`).
-4.  **Select your collection** from the sidebar and start asking questions.
-
-**Note:** The Streamlit UI requires the FastAPI backend to be running. The CLI (`app.py ask`) works independently and does not require the backend.
-
-### 3. Asking Questions (CLI)
-
-For command-line enthusiasts, the `ask` command provides a direct way to get answers.
+### Asking questions (CLI)
 
 ```bash
 python3 app.py ask "<your_question>" --collection <your_collection_name>
 ```
 
-**Example:**
 ```bash
 python3 app.py ask "how do i merge two dataframes?" --collection pandas_v2
 ```
 
-This will output a detailed answer along with the sources used to generate it.
+Outputs the answer plus the sources used. Add `--hyde` to retrieve using an LLM-generated hypothetical answer instead of the raw query ([HyDE](https://arxiv.org/abs/2212.10496)) — see [`eval/README.md`](eval/README.md) to A/B it against the baseline.
 
-Add `--hyde` to retrieve using an LLM-generated hypothetical answer instead
-of the raw query ([HyDE](https://arxiv.org/abs/2212.10496)) — can help on
-short or keyword-poor questions. The final answer is still grounded in your
-real question; only retrieval changes. See [`eval/README.md`](eval/README.md)
-for how to A/B it against the baseline.
+## Configuration
 
-## Development Setup
+### CORS
 
-### Code Quality Tools
-
-This project uses automated code quality checks to maintain consistent code style and catch issues early.
-
-#### Pre-commit Hooks
-
-Pre-commit hooks run automatically before each commit to check formatting and linting. **All developers must set up pre-commit hooks.**
-
-1. **Install dependencies (includes pre-commit):**
-   ```bash
-   uv sync
-   ```
-
-2. **Install the git hooks:**
-   ```bash
-   uv run pre-commit install
-   ```
-
-3. **Test the hooks (optional):**
-   ```bash
-   uv run pre-commit run --all-files
-   ```
-
-Now, when you commit, the hooks will:
-- Auto-format and auto-fix lint issues with `ruff`
-- Check for trailing whitespace, large files, and other common issues
-- Block the commit if unfixable issues are found
-
-**Note:** You can bypass hooks with `git commit --no-verify`, but this is discouraged. All code should pass formatting and linting checks before committing.
-
-#### Manual Code Quality Checks
-
-You can also run checks manually:
+The API restricts cross-origin requests via the `CORS_ORIGINS` environment variable.
 
 ```bash
-# Format code
-uv run ruff format src tests api scripts
+# Development default
+CORS_ORIGINS=http://localhost:8501
 
-# Check formatting (without modifying files)
-uv run ruff format --check src tests api scripts
-
-# Lint code
-uv run ruff check src tests api scripts
-
-# Auto-fix linting issues
-uv run ruff check --fix src tests api scripts
-
-# Type-check
-uv run mypy src api
+# Production: comma-separated origins
+CORS_ORIGINS=https://your-app.example.com,https://admin.example.com
 ```
 
-#### Running Tests Locally
+Set it in `docker-compose.yml` under the `api` service, or when running `uvicorn` directly. Never use a wildcard (`*`) origin in production.
 
-Before pushing code, run tests locally:
+## Development
+
+### Code quality
 
 ```bash
-# Run fast unit tests (no external services needed)
-uv run pytest tests/unit/ -v
+uv run pre-commit install          # one-time: install git hooks
 
-# Run integration tests (requires Qdrant, Ollama, FastAPI)
-uv run pytest tests/integration/ -v
-
-# Run all tests
-uv run pytest tests/ -v
+uv run ruff format .               # format
+uv run ruff format --check .       # check formatting
+uv run ruff check .                # lint
+uv run ruff check --fix .          # auto-fix lint issues
+uv run mypy src api                # type-check
 ```
 
-**Important:** Ensure all tests pass locally before creating a pull request.
+Pre-commit runs ruff (format + lint) and basic file hygiene checks on every commit. Bypass with `git commit --no-verify` if you must, but CI runs the same checks.
 
-## Testing
-
-Run the automated test script to validate your setup:
+### Tests
 
 ```bash
-python3 tests/integration/test_docker_setup_integration.py [collection_name]
+uv run pytest tests/unit/ -v          # fast, no external services
+uv run pytest tests/integration/ -v   # requires Qdrant, Ollama, FastAPI running
+uv run pytest tests/ -v               # both
 ```
 
-This will test:
-- API health endpoint
-- Collections endpoint
-- Search endpoint (if collection provided)
-- Ask/RAG endpoint (if collection provided)
-- Streamlit UI accessibility
+`tests/integration/test_docker_setup_integration.py [collection_name]` smoke-tests a running Docker Compose deployment (health, collections, search, ask, Streamlit reachability).
 
-See `tests/integration/test_docker_setup_integration.py` for more details.
+### Evaluating answer quality
 
-## Eval Harness
-
-Unit and integration tests verify the code works; they don't verify answers
-are any *good*. `eval/` runs a golden set of questions through the real RAG
-pipeline and checks the answers against known-good expectations (keywords,
-citation counts, expected refusals) — catches answer-quality regressions
-from a model swap, prompt change, or reranking tweak. Requires a live stack
-(Qdrant + Ollama), so it runs on the server, not in CI. See
-[`eval/README.md`](eval/README.md).
+Unit and integration tests mock the models out — they verify the code runs, not that answers are good. `eval/` runs a fixed set of questions through the live pipeline and checks answers against known-good expectations (keywords, citation counts, expected refusals). Requires a live stack, so it doesn't run in CI. See [`eval/README.md`](eval/README.md).

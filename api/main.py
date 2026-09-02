@@ -26,8 +26,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 # Create FastAPI app
 app = FastAPI(
-    title="RAG Documentation Search API",
-    description="REST API for RAG-based documentation search system",
+    title="CiteRAG API",
+    description="REST API for CiteRAG, a self-hosted RAG system for technical documentation",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -61,7 +61,7 @@ app.include_router(rag.router)
 async def root() -> dict[str, str]:
     """Root endpoint."""
     return {
-        "message": "RAG Documentation Search API",
+        "message": "CiteRAG API",
         "docs": "/docs",
         "health": "/health",
     }
