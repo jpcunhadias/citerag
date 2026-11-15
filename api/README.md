@@ -83,7 +83,7 @@ retrieval — the final answer is still grounded in `query`.
 
 **POST** `/api/ask/stream`
 
-Execute the RAG pipeline and stream LLM tokens as NDJSON. Same request body as `/api/ask` (except `debug` is ignored). Each line is JSON: `{"type": "token", "content": "..."}` or `{"type": "done", "citations": [...], "used_chunk_ids": [...]}`.
+Execute the RAG pipeline and stream LLM tokens as NDJSON. Same request body as `/api/ask` (except `debug` is ignored). Each line is JSON: `{"type": "token", "content": "..."}` or `{"type": "done", "citations": [...], "used_chunk_ids": [...], "refused": false}`. The citation check runs once the stream ends; if the answer fails it, the done line has `"refused": true`, a `"refusal_message"`, and no citations, and the client should replace the streamed text with the refusal message.
 
 ### Search
 

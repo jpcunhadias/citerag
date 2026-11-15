@@ -5,7 +5,7 @@ import logging
 import pandas as pd
 import streamlit as st
 
-from src.api_client import APIClient, APIClientError
+from src.api_client import APIClient, APIClientError, StreamAskResult
 from src.config import API_BASE_URL, RAG_REFUSAL_MESSAGE
 from src.models import Citation
 
@@ -42,6 +42,25 @@ def build_citations_data(citations: list[Citation]) -> list[dict[str, str]]:
             }
         )
     return citations_data
+
+
+def finalize_stream_answer(streamed_text: str, stream_result: StreamAskResult) -> str:
+    """
+    Return the answer to keep for a finished stream.
+
+    The backend checks citations only once the stream ends. If the check failed,
+    the text already on screen is replaced with the refusal message.
+
+    Args:
+        streamed_text: Text returned by st.write_stream.
+        stream_result: The consumed StreamAskResult.
+
+    Returns:
+        The refusal message if the stream was refused, otherwise streamed_text.
+    """
+    if stream_result.refused:
+        return stream_result.refusal_message or RAG_REFUSAL_MESSAGE
+    return streamed_text
 
 
 @st.cache_data(ttl=60)  # Cache for 60 seconds
@@ -180,7 +199,18 @@ def render() -> None:
                     )
 
                 with st.chat_message("assistant"):
-                    full_answer = st.write_stream(stream_result)
+                    # Stream into a placeholder so the text can be swapped for
+                    # the refusal if the end-of-stream citation check fails.
+                    answer_slot = st.empty()
+                    streamed = answer_slot.write_stream(stream_result)
+                    streamed_text = (
+                        streamed
+                        if isinstance(streamed, str)
+                        else "".join(str(part) for part in streamed)
+                    )
+                    full_answer = finalize_stream_answer(streamed_text, stream_result)
+                    if stream_result.refused:
+                        answer_slot.markdown(full_answer)
 
                     st.session_state.messages.append({"role": "assistant", "content": full_answer})
 

@@ -12,6 +12,45 @@ from src.search import SearchService
 
 logger = logging.getLogger(__name__)
 
+# Matches citation markers like [1], [12] and grouped ones like [1, 3].
+_CITATION_PATTERN = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
+
+
+def enforce_citations(answer: str, num_labels: int) -> str:
+    """
+    Citation compliance check shared by the streaming and non-streaming paths.
+
+    An answer passes if it is the refusal message, or if it cites at least one
+    label and every label it cites exists in the context (1..num_labels).
+    Anything else is replaced with the refusal message.
+
+    Args:
+        answer: Full LLM answer text.
+        num_labels: Number of labeled chunks that went into the context.
+
+    Returns:
+        The answer unchanged if it passes, otherwise RAG_REFUSAL_MESSAGE.
+    """
+    if answer.strip() == RAG_REFUSAL_MESSAGE:
+        return answer
+
+    labels = [int(n) for group in _CITATION_PATTERN.findall(answer) for n in group.split(",")]
+    if not labels:
+        logger.warning(
+            "Answer does not contain citations but is not a refusal. Replacing with refusal string."
+        )
+        return RAG_REFUSAL_MESSAGE
+
+    out_of_range = sorted({n for n in labels if not 1 <= n <= num_labels})
+    if out_of_range:
+        logger.warning(
+            f"Answer cites labels {out_of_range} outside 1..{num_labels}. "
+            "Replacing with refusal string."
+        )
+        return RAG_REFUSAL_MESSAGE
+
+    return answer
+
 
 class RAGService:
     """Service for RAG pipeline: search, rerank, context building, and LLM generation."""
@@ -192,15 +231,7 @@ class RAGService:
         answer = self.llm_client.generate(full_prompt)
 
         # Step 7: Citation compliance check
-        if answer.strip() != RAG_REFUSAL_MESSAGE:
-            # Check if answer contains citation labels [1], [2], etc.
-            citation_pattern = r"\[\d+\]"
-            if not re.search(citation_pattern, answer):
-                logger.warning(
-                    "Answer does not contain citations but is not a refusal. "
-                    "Replacing with refusal string."
-                )
-                answer = RAG_REFUSAL_MESSAGE
+        answer = enforce_citations(answer, num_labels=len(citations))
 
         # Step 8: Return RAGResponse. A refusal answer — whether the LLM said
         # it directly or the compliance check above forced it — should carry
@@ -223,10 +254,15 @@ class RAGService:
         use_hyde: bool = False,
     ) -> Iterator[str | dict]:
         """
-        Execute RAG pipeline and stream LLM tokens. Skips citation compliance check.
+        Execute RAG pipeline and stream LLM tokens.
 
         Yields token strings, then a final dict:
-        {"type": "done", "citations": [...], "used_chunk_ids": [...]}.
+        {"type": "done", "citations": [...], "used_chunk_ids": [...], "refused": bool}.
+
+        Tokens reach the client before the answer is complete, so the citation
+        compliance check (the same one ask() uses) runs once the stream ends. If
+        it fails, the done dict has "refused": True, a "refusal_message", and no
+        citations; the client must replace the streamed text with that message.
 
         Args:
             query: User query text.
@@ -271,7 +307,7 @@ class RAGService:
         if not context_str.strip():
             logger.warning("Empty context - yielding default response")
             yield RAG_REFUSAL_MESSAGE
-            yield {"type": "done", "citations": [], "used_chunk_ids": []}
+            yield {"type": "done", "citations": [], "used_chunk_ids": [], "refused": False}
             return
 
         # Step 5: Build prompt
@@ -283,10 +319,35 @@ class RAGService:
         )
         full_prompt = f"{system_prompt}\n\nContext:\n{context_str}\n\nQuestion: {query}\n\nAnswer:"
 
-        # Step 6: Stream LLM tokens (no citation compliance check for streaming)
+        # Step 6: Stream LLM tokens, keeping the full text for the check below
         logger.info("Streaming answer with LLM...")
-        yield from self.llm_client.generate_stream(full_prompt)
+        tokens: list[str] = []
+        for token in self.llm_client.generate_stream(full_prompt):
+            tokens.append(token)
+            yield token
+        answer = "".join(tokens)
 
-        # Step 7: Yield done message with citations
+        # Step 7: Citation compliance check on the complete answer
+        checked = enforce_citations(answer, num_labels=len(citations))
+        if checked != answer:
+            yield {
+                "type": "done",
+                "citations": [],
+                "used_chunk_ids": [],
+                "refused": True,
+                "refusal_message": RAG_REFUSAL_MESSAGE,
+            }
+            return
+
+        # Step 8: Yield done message. A refusal the LLM gave itself carries no
+        # citations, matching ask().
+        if answer.strip() == RAG_REFUSAL_MESSAGE:
+            yield {"type": "done", "citations": [], "used_chunk_ids": [], "refused": False}
+            return
         citations_data = [c.model_dump() for c in citations]
-        yield {"type": "done", "citations": citations_data, "used_chunk_ids": used_chunk_ids}
+        yield {
+            "type": "done",
+            "citations": citations_data,
+            "used_chunk_ids": used_chunk_ids,
+            "refused": False,
+        }
