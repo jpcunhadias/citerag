@@ -46,9 +46,20 @@ uv run python scripts/run_eval.py --report-out eval/results/baseline.json
 uv run python scripts/run_eval.py --hyde --report-out eval/results/hyde.json
 ```
 
-Then diff the two JSON reports, or just compare the printed pass rates. The
-golden set is small on purpose — good enough to catch a regression or
-confirm a real improvement, not a statistically rigorous benchmark.
+Then diff the two JSON reports, or just compare the printed pass rates.
+
+## What this is (and isn't)
+
+This is a smoke test, not a benchmark. The golden set has 10 questions
+(6 answerable, 4 off-topic) over a small fixture corpus written by
+`scripts/generate_test_data.py` (14 and 7 chunks). The default `top_k=25` is
+at least the size of each collection, so every query retrieves the whole
+collection and dense, hybrid and HyDE retrieval can't be told apart here.
+Each case runs once, and the harness calls `ask()`, not the streaming path.
+
+Use it to catch a pipeline that is clearly broken (no citations, refusals on
+answerable questions, answers on off-topic ones). Don't read a pass-rate
+change between retrieval variants as evidence that one is better.
 
 ## Adding cases
 
