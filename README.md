@@ -117,7 +117,7 @@ Two pipelines:
 - **Embedding model:** `BAAI/bge-m3` (via `FlagEmbedding`)
 - **Reranker model:** `BAAI/bge-reranker-v2-m3`
 - **LLM:** Ollama
-- **Core libraries:** `langchain`, `sentence-transformers`, `torch`, `qdrant-client`, `fastapi`, `httpx`
+- **Core libraries:** `FlagEmbedding`, `torch`, `qdrant-client`, `fastapi`, `httpx`, `langchain-text-splitters` (chunking only)
 - **Tooling:** `uv`, `ruff`, `mypy`, `pytest`
 
 ## Getting Started
