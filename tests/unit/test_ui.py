@@ -4,9 +4,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.api_client import APIClient, APIClientError
+from src.api_client import APIClient, APIClientError, StreamAskResult
+from src.config import RAG_REFUSAL_MESSAGE
 from src.models import Citation
-from src.ui import build_citations_data, get_collections, init_state
+from src.ui import build_citations_data, finalize_stream_answer, get_collections, init_state
 
 # Constants for tests
 FALLBACK_COLLECTIONS = ["pandas_docs"]
@@ -114,3 +115,17 @@ class TestSessionStateManagement:
         init_state()
         assert mock_st.session_state["messages"] == existing_messages
         assert mock_st.session_state["api_client"] == mock_client
+
+
+class TestFinalizeStreamAnswer:
+    """The UI swaps streamed text for the refusal when the backend refuses."""
+
+    def test_refused_stream_is_replaced_with_refusal(self):
+        result = StreamAskResult(iter([]), [], [])
+        result.refused = True
+        result.refusal_message = RAG_REFUSAL_MESSAGE
+        assert finalize_stream_answer("Uncited claim.", result) == RAG_REFUSAL_MESSAGE
+
+    def test_accepted_stream_keeps_text(self):
+        result = StreamAskResult(iter([]), [], [])
+        assert finalize_stream_answer("Cited claim [1].", result) == "Cited claim [1]."

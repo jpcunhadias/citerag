@@ -16,8 +16,10 @@ class StreamAskResult:
     """
     Result of streaming ask. Provides token iterator and citations after stream completes.
 
-    Use with st.write_stream(result) - after iteration, citations and used_chunk_ids
-    are populated from the final NDJSON message.
+    Use with st.write_stream(result) - after iteration, citations, used_chunk_ids
+    and refused are populated from the final NDJSON message. When refused is True
+    the streamed text failed the citation check and must be replaced with
+    refusal_message.
     """
 
     def __init__(
@@ -29,6 +31,8 @@ class StreamAskResult:
         self._token_iterator = token_iterator
         self.citations: list[Citation] = citations_ref
         self.used_chunk_ids: list[str] = used_chunk_ids_ref
+        self.refused: bool = False
+        self.refusal_message: str | None = None
 
     def __iter__(self) -> Iterator[str]:
         return self._token_iterator
@@ -159,6 +163,7 @@ class APIClient:
 
         citations: list[Citation] = []
         used_chunk_ids: list[str] = []
+        result: StreamAskResult
 
         def token_generator() -> Iterator[str]:
             try:
@@ -180,6 +185,8 @@ class APIClient:
                             elif obj.get("type") == "done":
                                 citations.extend([Citation(**c) for c in obj.get("citations", [])])
                                 used_chunk_ids.extend(obj.get("used_chunk_ids", []))
+                                result.refused = bool(obj.get("refused", False))
+                                result.refusal_message = obj.get("refusal_message")
                                 return
                             elif obj.get("type") == "error":
                                 raise APIClientError(obj.get("detail", "Stream error"))
@@ -192,7 +199,8 @@ class APIClient:
                     f"Failed to connect to API at {self.base_url}: {str(e)}"
                 ) from e
 
-        return StreamAskResult(token_generator(), citations, used_chunk_ids)
+        result = StreamAskResult(token_generator(), citations, used_chunk_ids)
+        return result
 
     def search(
         self,

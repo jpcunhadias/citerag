@@ -4,8 +4,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.config import RAG_REFUSAL_MESSAGE
 from src.models import SearchResult
-from src.rag import RAGService
+from src.rag import RAGService, enforce_citations
 
 
 class TestRAGService:
@@ -496,7 +497,7 @@ class TestRAGService:
             )
         ]
         mock_reranker_service.rerank.return_value = mock_search_service.hybrid_search.return_value
-        mock_llm_client.generate_stream.return_value = iter(["Hello", " ", "world"])
+        mock_llm_client.generate_stream.return_value = iter(["Hello", " ", "world [1]"])
 
         items = list(
             rag_service.ask_stream(
@@ -508,8 +509,9 @@ class TestRAGService:
             )
         )
 
-        assert items[:-1] == ["Hello", " ", "world"]
+        assert items[:-1] == ["Hello", " ", "world [1]"]
         assert items[-1]["type"] == "done"
+        assert items[-1]["refused"] is False
         assert "citations" in items[-1]
         assert "used_chunk_ids" in items[-1]
         assert len(items[-1]["citations"]) == 1
@@ -565,5 +567,94 @@ class TestRAGService:
 
         assert len(items) == 2
         assert items[0] == "I couldn't find this in the indexed documentation."
-        assert items[1] == {"type": "done", "citations": [], "used_chunk_ids": []}
+        assert items[1] == {
+            "type": "done",
+            "citations": [],
+            "used_chunk_ids": [],
+            "refused": False,
+        }
         mock_search_service.hybrid_search.assert_called_once()
+
+
+class TestEnforceCitations:
+    """Tests for the citation compliance check shared by ask() and ask_stream()."""
+
+    def test_valid_label_passes(self):
+        assert enforce_citations("Use read_csv [1].", num_labels=2) == "Use read_csv [1]."
+
+    def test_grouped_labels_in_range_pass(self):
+        answer = "Both apply [1, 2]."
+        assert enforce_citations(answer, num_labels=2) == answer
+
+    def test_no_citation_is_refused(self):
+        assert enforce_citations("No citations here.", num_labels=2) == RAG_REFUSAL_MESSAGE
+
+    @pytest.mark.parametrize("answer", ["Claim [3].", "Claim [0].", "Claim [1, 3]."])
+    def test_out_of_range_label_is_refused(self, answer):
+        assert enforce_citations(answer, num_labels=2) == RAG_REFUSAL_MESSAGE
+
+    def test_one_bad_label_refuses_whole_answer(self):
+        assert enforce_citations("A [1]. B [7].", num_labels=2) == RAG_REFUSAL_MESSAGE
+
+    def test_refusal_message_passes_unchanged(self):
+        assert enforce_citations(RAG_REFUSAL_MESSAGE, num_labels=2) == RAG_REFUSAL_MESSAGE
+
+
+class TestCitationCheckOnBothPaths:
+    """ask() and ask_stream() must reach the same verdict on the same LLM output."""
+
+    @pytest.fixture
+    def rag_service(self):
+        search = MagicMock()
+        search.hybrid_search.return_value = [
+            SearchResult(
+                chunk_id=f"chunk{i}",
+                score=0.9,
+                text=f"Chunk {i} text",
+                source_path=f"doc{i}.md",
+                canonical_source_id=f"doc{i}.md",
+            )
+            for i in (1, 2)
+        ]
+        return RAGService(
+            search_service=search, reranker_service=MagicMock(), llm_client=MagicMock()
+        )
+
+    def _ask(self, svc, answer):
+        svc.llm_client.generate.return_value = answer
+        return svc.ask(query="q", collection="c", rerank=False)
+
+    def _stream(self, svc, answer):
+        svc.llm_client.generate_stream.return_value = iter([answer[:5], answer[5:]])
+        items = list(svc.ask_stream(query="q", collection="c", rerank=False))
+        return "".join(i for i in items if isinstance(i, str)), items[-1]
+
+    @pytest.mark.parametrize("answer", ["No citations at all.", "Out of range [3]."])
+    def test_bad_answer_refused_on_both_paths(self, rag_service, answer):
+        response = self._ask(rag_service, answer)
+        assert response.answer == RAG_REFUSAL_MESSAGE
+        assert response.citations == []
+
+        streamed, done = self._stream(rag_service, answer)
+        assert streamed == answer  # tokens already went out; the done dict retracts them
+        assert done["type"] == "done"
+        assert done["refused"] is True
+        assert done["refusal_message"] == RAG_REFUSAL_MESSAGE
+        assert done["citations"] == []
+        assert done["used_chunk_ids"] == []
+
+    def test_valid_answer_passes_on_both_paths(self, rag_service):
+        answer = "Use the second chunk [2]."
+        response = self._ask(rag_service, answer)
+        assert response.answer == answer
+        assert len(response.citations) == 2
+
+        _, done = self._stream(rag_service, answer)
+        assert done["refused"] is False
+        assert "refusal_message" not in done
+        assert [c["chunk_id"] for c in done["citations"]] == ["chunk1", "chunk2"]
+
+    def test_llm_refusal_on_stream_is_not_flagged_but_has_no_citations(self, rag_service):
+        _, done = self._stream(rag_service, RAG_REFUSAL_MESSAGE)
+        assert done["refused"] is False
+        assert done["citations"] == []
