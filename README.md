@@ -2,16 +2,16 @@
 
 [![CI](https://github.com/jpcunhadias/citerag/actions/workflows/ci.yml/badge.svg)](https://github.com/jpcunhadias/citerag/actions/workflows/ci.yml)
 
-CiteRAG is a self-hosted question-answering system for technical documentation. It indexes local `.md`/`.txt` docs, retrieves with hybrid dense+sparse search and cross-encoder reranking, and answers with enforced citations: if the LLM can't back a claim with a source, the answer is replaced with a refusal instead of shown unsupported. All inference runs locally — no data leaves your machine.
+CiteRAG is a self-hosted question-answering system for technical documentation. It indexes local `.md`/`.txt` docs, retrieves with hybrid dense+sparse search and cross-encoder reranking, and answers with enforced citations: if the answer doesn't cite a chunk from the retrieved context, it is replaced with a refusal instead of shown unsupported. All inference runs locally — no data leaves your machine.
 
 ## Features
 
 - **Hybrid retrieval** — dense + sparse embeddings (`BAAI/bge-m3`) fused with Reciprocal Rank Fusion, so both semantic and keyword matches surface.
 - **Cross-encoder reranking** (`BAAI/bge-reranker-v2-m3`) refines the candidate set before it reaches the LLM.
-- **Enforced citations** — answers are checked for citation labels before being returned; an uncited answer is replaced with a refusal rather than shown as fact.
+- **Enforced citations** — every answer must cite at least one context label, and every label it cites must exist in the retrieved context; otherwise it is replaced with a refusal rather than shown as fact. The check runs on both the regular and the streaming path (a streamed answer that fails is replaced in the UI once the stream ends). It checks that cited labels exist, not that the cited chunk supports the claim.
 - **Optional HyDE retrieval** — retrieve using an LLM-generated hypothetical answer instead of the raw query, useful for short or keyword-poor questions. Only affects retrieval; the final answer is still grounded in the real question.
-- **Incremental ingestion** — re-running ingestion skips unchanged files (by content hash) and cleans up chunks left behind by edited files, instead of re-embedding everything every time.
-- **Answer-quality eval harness** — a golden set of questions run against the live pipeline, checked against known-good expectations. Catches regressions that a mocked-model unit test suite can't. See [`eval/README.md`](eval/README.md).
+- **Incremental ingestion** — chunk IDs are content hashes, so re-running ingestion only embeds chunks that are new or changed and removes chunks left behind by edited files. Chunks from files that were deleted from the input are removed only with `--prune-missing`.
+- **Smoke-test eval** — 10 golden questions (6 answerable, 4 off-topic) on a small fixture corpus, run against the live models. Catches a clearly broken pipeline that the mocked unit tests can't; too small to compare retrieval variants. See [`eval/README.md`](eval/README.md).
 - **Three interfaces** — a Streamlit chat UI, a FastAPI backend, and a CLI, all backed by the same `RAGService`.
 
 ## Architecture
@@ -191,7 +191,7 @@ python3 app.py ingest \
   --library pandas
 ```
 
-Ingestion is incremental: unchanged files are skipped by content hash, and stale chunks from edited files are cleaned up automatically.
+Ingestion is incremental: each chunk is hashed, chunks already in the collection are not re-embedded, and stale chunks from edited files are cleaned up automatically. Files that were deleted from the input keep their chunks unless you pass `--prune-missing`.
 
 ### Asking questions (Web UI)
 
